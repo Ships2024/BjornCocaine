@@ -42,6 +42,10 @@ class Display:
 
         # Define frise positions for different display types
         self.frise_positions = {
+            "lcd35": {
+                "x": 0,
+                "y": 155
+            },
             "epd2in7": {
                 "x": 50,
                 "y": 160
@@ -74,6 +78,14 @@ class Display:
 
         self.scale_factor_x = self.shared_data.scale_factor_x
         self.scale_factor_y = self.shared_data.scale_factor_y
+
+    def centered_image_left_position(self, container_width, image_width):
+        if image_width > container_width:
+            return None  # Or raise an exception, depending on your needs
+
+        difference = container_width - image_width
+        left_position = difference / 2
+        return int(left_position)
 
     def get_frise_position(self):
         """Get the frise position based on the display type."""
@@ -321,18 +333,22 @@ class Display:
 
                 # Get frise position based on display type
                 frise_x, frise_y = self.get_frise_position()
-                image.paste(self.shared_data.frise, (frise_x, frise_y))
 
-                draw.rectangle((1, 1, self.shared_data.width - 1, self.shared_data.height - 1), outline=0)
-                draw.line((1, 20, self.shared_data.width - 1, 20), fill=0)
-                draw.line((1, 59, self.shared_data.width - 1, 59), fill=0)
-                draw.line((1, 87, self.shared_data.width - 1, 87), fill=0)
+                draw.rectangle((1, 1, self.shared_data.width - 2, self.shared_data.height - 2), outline=0)
+                draw.line((1, 20, self.shared_data.width - 2, 20), fill=0)
+                draw.line((1, 59, self.shared_data.width - 2, 59), fill=0)
+                draw.line((1, 87, self.shared_data.width - 2, 87), fill=0)
+                frise_bg_pos = int(frise_y + (self.shared_data.frise.height/2)) 
+                draw.line((1, frise_bg_pos, self.shared_data.width - 2, frise_bg_pos), fill=0, width=self.shared_data.frise.height)
+
+                left_pos = self.centered_image_left_position(self.shared_data.width, self.shared_data.frise.width)
+                image.paste(self.shared_data.frise, (left_pos, frise_y))
 
                 lines = self.shared_data.wrap_text(self.shared_data.bjornsay, self.shared_data.font_arialbold, self.shared_data.width - 4)
                 y_text = int(90 * self.scale_factor_y)
 
                 if self.main_image is not None:
-                    image.paste(self.main_image, (self.shared_data.x_center1, self.shared_data.y_bottom1))
+                    image.paste(self.main_image, (self.shared_data.x_center1, self.shared_data.y_bottom1-1))
                 else:
                     logger.error("Main image not found in shared_data.")
 
@@ -343,7 +359,6 @@ class Display:
                 if self.screen_reversed:
                     image = image.transpose(Image.ROTATE_180)
 
-                self.epd_helper.display_partial(image)
                 self.epd_helper.display_partial(image)
 
                 if self.web_screen_reversed:

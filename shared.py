@@ -25,7 +25,6 @@ from PIL import Image, ImageFont
 from logger import Logger
 from epd_helper import EPDHelper
 
-
 logger = Logger(name="shared.py", level=logging.DEBUG) # Create a logger object 
 
 class SharedData:
@@ -140,7 +139,7 @@ class SharedData:
             "scan_vuln_interval": 900,
             "failed_retry_delay": 600,
             "success_retry_delay": 900, 
-            "ref_width" :122 ,
+            "ref_width" : 122,
             "ref_height" : 250,
             "epd_type": "epd2in13_V4",
             
@@ -265,6 +264,15 @@ class SharedData:
                 logger.info("EPD type: epd2in13_V4 screen reversed")
                 self.screen_reversed = True
                 self.web_screen_reversed = True
+            elif self.config["epd_type"] == "lcd35":
+                logger.info("EPD type: lcd35 is not an epaper display. Utilizing framebuffer.")
+                self.screen_reversed = False
+                self.web_screen_reversed = False 
+            elif self.config["epd_type"] == "browser_only":
+                logger.info(f"Experimental web browser only access.")
+                self.screen_reversed = False
+                self.web_screen_reversed = False 
+
             self.epd_helper.init_full_update()
             self.width, self.height = self.epd_helper.epd.width, self.epd_helper.epd.height
             logger.info(f"EPD {self.config['epd_type']} initialized with size: {self.width}x{self.height}")

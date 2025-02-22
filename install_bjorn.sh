@@ -236,7 +236,12 @@ install_dependencies() {
         apt-get install -y "$package"
         check_success "Installed $package"
     done
-    
+   
+    if [ $EPD_VERSION == "lcd35" ]; then
+        log "INFO" "Installing fbi... a custom requirement for lcd35 display"
+        apt-get install -y fbi
+    fi
+
     # Update nmap scripts
     nmap --script-updatedb
     check_success "Dependencies installation completed"
@@ -531,26 +536,30 @@ main() {
     read -p "Choose an option (1/2): " install_option
 
     # E-Paper Display Selection
-    echo -e "\n${BLUE}Please select your E-Paper Display version:${NC}"
+    echo -e "\n${BLUE}Please select your Display:${NC}"
     echo "1. epd2in13"
     echo "2. epd2in13_V2"
     echo "3. epd2in13_V3"
     echo "4. epd2in13_V4"
     echo "5. epd2in7"
+    echo "6. lcd35"
+    echo "7. browser_only"
     
     while true; do
-        read -p "Enter your choice (1-4): " epd_choice
+        read -p "Enter your choice (1-7): " epd_choice
         case $epd_choice in
             1) EPD_VERSION="epd2in13"; break;;
             2) EPD_VERSION="epd2in13_V2"; break;;
             3) EPD_VERSION="epd2in13_V3"; break;;
             4) EPD_VERSION="epd2in13_V4"; break;;
             5) EPD_VERSION="epd2in7"; break;;
-            *) echo -e "${RED}Invalid choice. Please select 1-5.${NC}";;
+            6) EPD_VERSION="lcd35"; break;;
+            7) EPD_VERSION="browser_only"; break;;
+            *) echo -e "${RED}Invalid choice. Please select 1-7.${NC}";;
         esac
     done
 
-    log "INFO" "Selected E-Paper Display version: $EPD_VERSION"
+    log "INFO" "Selected Display: $EPD_VERSION"
 
     case $install_option in
         1)
