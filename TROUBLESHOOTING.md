@@ -1,80 +1,80 @@
-# 🐛 Known Issues and Troubleshooting
+# 🐛 Известные проблемы и устранение неполадок
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/c5eb4cc1-0c3d-497d-9422-1614651a84ab" alt="thumbnail_IMG_0546" width="98">
 </p>
 
-## 📚 Table of Contents
+## 📚 Содержание
 
-- [Current Development Issues](#-current-development-issues)
-- [Troubleshooting Steps](#-troubleshooting-steps)
-- [License](#-license)
+- [Текущие проблемы разработки](#-текущие-проблемы-разработки)
+- [Шаги по устранению неполадок](#-шаги-по-устранению-неполадок)
+- [Лицензия](#-лицензия)
 
-## 🪲 Current Development Issues
+## 🪲 Текущие проблемы разработки
 
-### Long Runtime Issue
+### Проблема длительного времени выполнения
 
-- **Problem**: `OSError: [Errno 24] Too many open files`
-- **Status**: Partially resolved with system limits configuration.
-- **Workaround**: Implemented file descriptor limits increase.
-- **Monitoring**: Check open files with `lsof -p $(pgrep -f Bjorn.py) | wc -l`
-- At the moment the logs show periodically this information as (FD : XXX)
+- **Проблема**: `OSError: [Errno 24] Too many open files` (Слишком много открытых файлов)
+- **Статус**: Частично решено с помощью конфигурации системных ограничений.
+- **Временное решение**: Реализовано увеличение ограничений файловых дескрипторов.
+- **Мониторинг**: Проверьте количество открытых файлов с помощью `lsof -p $(pgrep -f Bjorn.py) | wc -l`
+- На данный момент журналы периодически показывают эту информацию как (FD : XXX)
 
-## 🛠️ Troubleshooting Steps
+## 🛠️ Шаги по устранению неполадок
 
-### Service Issues
+### Проблемы со службой
 
 ```bash
-#See bjorn journalctl service
+#Посмотреть журнал службы bjorn journalctl
 journalctl -fu bjorn.service
 
-# Check service status
+# Проверить статус службы
 sudo systemctl status bjorn.service
 
-# View detailed logs
+# Просмотреть подробные журналы
 sudo journalctl -u bjorn.service -f
 
-or
+или
 
 sudo tail -f /home/bjorn/Bjorn/data/logs/*
 
 
-# Check port 8000 usage
+# Проверить использование порта 8000
 sudo lsof -i :8000
 ```
 
-### Display Issues
+### Проблемы с дисплеем
 
 ```bash
-# Verify SPI devices
+# Проверить устройства SPI
 ls /dev/spi*
 
-# Check user permissions
+# Проверить права пользователя
 sudo usermod -a -G spi,gpio bjorn
 ```
 
-### Network Issues
+### Проблемы с сетью
 
 ```bash
-# Check network interfaces
+# Проверить сетевые интерфейсы
 ip addr show
 
-# Test USB gadget interface
+# Протестировать интерфейс USB-гаджета
 ip link show usb0
 ```
 
-### Permission Issues
+### Проблемы с разрешениями
 
 ```bash
-# Fix ownership
+# Исправить владельца
 sudo chown -R bjorn:bjorn /home/bjorn/Bjorn
 
-# Fix permissions
+# Исправить разрешения
 sudo chmod -R 755 /home/bjorn/Bjorn
 ```
 
 ---
 
-## 📜 License
+## 📜 Лицензия
 
-2024 - Bjorn is distributed under the MIT License. For more details, please refer to the [LICENSE](LICENSE) file included in this repository.
+2024 - Bjorn распространяется по лицензии MIT. Для получения более подробной информации см. файл [LICENSE](LICENSE), включенный в этот репозиторий.

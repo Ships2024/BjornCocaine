@@ -1,71 +1,71 @@
-# 🖲️ Bjorn Development
+# 🖲️ Разработка Bjorn
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/c5eb4cc1-0c3d-497d-9422-1614651a84ab" alt="thumbnail_IMG_0546" width="98">
 </p>
 
-## 📚 Table of Contents
+## 📚 Содержание
 
-- [Design](#-design)
-- [Educational Aspects](#-educational-aspects)
-- [Disclaimer](#-disclaimer)
-- [Extensibility](#-extensibility)
-- [Development Status](#-development-status)
-  - [Project Structure](#-project-structure)
-  - [Core Files](#-core-files)
-  - [Actions](#-actions)
-  - [Data Structure](#-data-structure)
-- [Detailed Project Description](#-detailed-project-description)
-  - [Behaviour of Bjorn](#-behavior-of-bjorn)
-- [Running Bjorn](#-running-bjorn)
-  - [Manual Start](#-manual-start)
-  - [Service Control](#-service-control)
-  - [Fresh Start](#-fresh-start)
-- [Important Configuration Files](#-important-configuration-files)
-  - [Shared Configuration](#-shared-configuration-shared_configjson)
-  - [Actions Configuration](#-actions-configuration-actionsjson)
-- [E-Paper Display Support](#-e-paper-display-support)
-  - [Ghosting Removed](#-ghosting-removed)
-- [Development Guidelines](#-development-guidelines)
-  - [Adding New Actions](#-adding-new-actions)
-  - [Testing](#-testing)
-- [Web Interface](#-web-interface)
-- [Project Roadmap](#-project-roadmap)
-  - [Current Focus](#-future-plans)
-  - [Future Plans](#-future-plans)
-- [License](#-license)
+- [Дизайн](#-дизайн)
+- [Образовательные аспекты](#-образовательные-аспекты)
+- [Отказ от ответственности](#-отказ-от-ответственности)
+- [Расширяемость](#-расширяемость)
+- [Статус разработки](#-статус-разработки)
+  - [Структура проекта](#-структура-проекта)
+  - [Основные файлы](#-основные-файлы)
+  - [Действия](#-действия)
+  - [Структура данных](#-структура-данных)
+- [Подробное описание проекта](#-подробное-описание-проекта)
+  - [Поведение Bjorn](#-поведение-bjorn)
+- [Запуск Bjorn](#-запуск-bjorn)
+  - [Ручной запуск](#-ручной-запуск)
+  - [Управление службой](#-управление-службой)
+  - [Новый запуск](#-новый-запуск)
+- [Важные файлы конфигурации](#-важные-файлы-конфигурации)
+  - [Общая конфигурация](#-общая-конфигурация-shared_configjson)
+  - [Конфигурация действий](#-конфигурация-действий-actionsjson)
+- [Поддержка дисплея E-Paper](#-поддержка-дисплея-e-paper)
+  - [Устранение остаточного изображения](#-устранение-остаточного-изображения)
+- [Руководство по разработке](#-руководство-по-разработке)
+  - [Добавление новых действий](#-добавление-новых-действий)
+  - [Тестирование](#-тестирование)
+- [Веб-интерфейс](#-веб-интерфейс)
+- [План развития проекта](#-план-развития-проекта)
+  - [Текущий фокус](#-текущий-фокус)
+  - [Будущие планы](#-будущие-планы)
+- [Лицензия](#-лицензия)
 
-## 🎨 Design
+## 🎨 Дизайн
 
-- **Portability**: Self-contained and portable device, ideal for penetration testing.
-- **Modularity**: Extensible architecture allowing  addition of new actions.
-- **Visual Interface**: The e-Paper HAT provides a visual interface for monitoring the ongoing actions, displaying results or stats, and interacting with Bjorn .
+- **Портативность**: Автономное и портативное устройство, идеально подходящее для тестирования на проникновение.
+- **Модульность**: Расширяемая архитектура, позволяющая добавлять новые действия.
+- **Визуальный интерфейс**: E-Paper HAT предоставляет визуальный интерфейс для мониторинга текущих действий, отображения результатов или статистики и взаимодействия с Bjorn.
 
-## 📔 Educational Aspects
+## 📔 Образовательные аспекты
 
-- **Learning Tool**: Designed as an educational tool to understand cybersecurity concepts and penetration testing techniques.
-- **Practical Experience**: Provides a practical means for students and professionals to familiarize themselves with network security practices and vulnerability assessment tools.
+- **Учебный инструмент**: Разработан как образовательный инструмент для понимания концепций кибербезопасности и методов тестирования на проникновение.
+- **Практический опыт**: Предоставляет практические средства для студентов и специалистов для ознакомления с практиками сетевой безопасности и инструментами оценки уязвимостей.
 
-## ✒️ Disclaimer
+## ✒️ Отказ от ответственности
 
-- **Ethical Use**: This project is strictly for educational purposes.
-- **Responsibility**: The author and contributors disclaim any responsibility for misuse of Bjorn.
-- **Legal Compliance**: Unauthorized use of this tool for malicious activities is prohibited and may be prosecuted by law.
+- **Этичное использование**: Этот проект предназначен исключительно для образовательных целей.
+- **Ответственность**: Автор и участники не несут никакой ответственности за неправомерное использование Bjorn.
+- **Соблюдение законодательства**: Несанкционированное использование этого инструмента для вредоносных действий запрещено и может преследоваться по закону.
 
-## 🧩 Extensibility
+## 🧩 Расширяемость
 
-- **Evolution**: The main purpose of Bjorn is to gain new actions and extend his arsenal over time.
-- **Modularity**: Actions are designed to be modular and can be easily extended or modified to add new functionality.
-- **Possibilities**: From capturing pcap files to cracking hashes, man-in-the-middle attacks, and more—the possibilities are endless.
-- **Contribution**: It's up to the user to develop new actions and add them to the project.
+- **Эволюция**: Основная цель Bjorn — приобретать новые действия и расширять свой арсенал с течением времени.
+- **Модульность**: Действия разработаны таким образом, чтобы быть модульными и могут быть легко расширены или изменены для добавления новой функциональности.
+- **Возможности**: От захвата файлов pcap до взлома хешей, атак «человек посередине» и многого другого — возможности безграничны.
+- **Вклад**: Разработка новых действий и их добавление в проект — задача пользователя.
 
-## 🔦 Development Status
+## 🔦 Статус разработки
 
-- **Project Status**: Ongoing development.
-- **Current Version**: Scripted  auto-installer, or manual installation. Not yet packaged with Raspberry Pi OS.
-- **Reason**: The project is still in an early stage, requiring further development and debugging.
+- **Статус проекта**: В процессе разработки.
+- **Текущая версия**: Скриптовый автоустановщик или ручная установка. Еще не упакован с Raspberry Pi OS.
+- **Причина**: Проект все еще находится на ранней стадии, требует дальнейшей разработки и отладки.
 
-### 🗂️ Project Structure
+### 🗂️ Структура проекта
 
 ```
 Bjorn/
@@ -116,156 +116,156 @@ Bjorn/
     └── waveshare_epd/
 ```
 
-### ⚓ Core Files
+### ⚓ Основные файлы
 
 #### Bjorn.py
 
-The main entry point for the application. It initializes and runs the main components, including the network scanner, orchestrator, display, and web server.
+Основная точка входа для приложения. Инициализирует и запускает основные компоненты, включая сетевой сканер, оркестратор, дисплей и веб-сервер.
 
 #### comment.py
 
-Handles generating all the Bjorn comments displayed on the e-Paper HAT based on different themes/actions and statuses.
+Отвечает за генерацию всех комментариев Bjorn, отображаемых на E-Paper HAT, в зависимости от различных тем/действий и статусов.
 
 #### display.py
 
-Manages the e-Paper HAT display, updating the screen with Bjorn character, the dialog/comments, and the current information such as network status, vulnerabilities, and various statistics.
+Управляет дисплеем E-Paper HAT, обновляя экран с персонажем Bjorn, диалогами/комментариями и текущей информацией, такой как состояние сети, уязвимости и различная статистика.
 
 #### epd_helper.py
 
-Handles the low-level interactions with the e-Paper display hardware.
+Обрабатывает низкоуровневые взаимодействия с аппаратным обеспечением дисплея E-Paper.
 
 #### logger.py
 
-Defines a custom logger with specific formatting and handlers for console and file logging. It also includes a custom log level for success messages.
+Определяет настраиваемый регистратор с определенным форматированием и обработчиками для ведения журнала в консоли и файле. Также включает настраиваемый уровень журнала для сообщений об успехе.
 
 #### orchestrator.py
 
-Bjorn’s AI, a heuristic engine that orchestrates the different actions such as network scanning, vulnerability scanning, attacks, and file stealing. It loads and executes actions based on the configuration and sets the status of the actions and Bjorn. 
+ИИ Bjorn, эвристический движок, который управляет различными действиями, такими как сканирование сети, сканирование уязвимостей, атаки и кража файлов. Загружает и выполняет действия на основе конфигурации и устанавливает статус действий и Bjorn.
 
 #### shared.py
 
-Defines the `SharedData` class that holds configuration settings, paths, and methods for updating and managing shared data across different modules.
+Определяет класс `SharedData`, который содержит настройки конфигурации, пути и методы для обновления и управления общими данными между различными модулями.
 
 #### init_shared.py
 
-Initializes shared data that is used across different modules. It loads the configuration and sets up necessary paths and variables.
+Инициализирует общие данные, которые используются в разных модулях. Загружает конфигурацию и настраивает необходимые пути и переменные.
 
 #### utils.py
 
-Contains utility functions used throughout the project.
+Содержит служебные функции, используемые во всем проекте.
 
 #### webapp.py
 
-Sets up and runs a web server to provide a web interface for changing settings, monitoring and interacting with Bjorn.
+Настраивает и запускает веб-сервер для предоставления веб-интерфейса для изменения настроек, мониторинга и взаимодействия с Bjorn.
 
-### ▶️ Actions
+### ▶️ Действия
 
 #### actions/scanning.py
 
-Conducts network scanning to identify live hosts and open ports. It updates the network knowledge base (`netkb`) and generates scan results.
+Проводит сканирование сети для выявления активных хостов и открытых портов. Обновляет базу знаний сети (`netkb`) и генерирует результаты сканирования.
 
 #### actions/nmap_vuln_scanner.py
 
-Performs vulnerability scanning using Nmap. It parses the results and updates the vulnerability summary for each host.
+Выполняет сканирование уязвимостей с использованием Nmap. Анализирует результаты и обновляет сводку уязвимостей для каждого хоста.
 
-#### Protocol Connectors
+#### Коннекторы протоколов
 
-- **ftp_connector.py**: Brute-force attacks on FTP services.
-- **ssh_connector.py**: Brute-force attacks on SSH services.
-- **smb_connector.py**: Brute-force attacks on SMB services.
-- **rdp_connector.py**: Brute-force attacks on RDP services.
-- **telnet_connector.py**: Brute-force attacks on Telnet services.
-- **sql_connector.py**: Brute-force attacks on SQL services.
+- **ftp_connector.py**: Атаки методом перебора на службы FTP.
+- **ssh_connector.py**: Атаки методом перебора на службы SSH.
+- **smb_connector.py**: Атаки методом перебора на службы SMB.
+- **rdp_connector.py**: Атаки методом перебора на службы RDP.
+- **telnet_connector.py**: Атаки методом перебора на службы Telnet.
+- **sql_connector.py**: Атаки методом перебора на службы SQL.
 
-#### File Stealing Modules
+#### Модули кражи файлов
 
-- **steal_files_ftp.py**: Steals files from FTP servers.
-- **steal_files_smb.py**: Steals files from SMB shares.
-- **steal_files_ssh.py**: Steals files from SSH servers.
-- **steal_files_telnet.py**: Steals files from Telnet servers.
-- **steal_data_sql.py**: Extracts data from SQL databases.
+- **steal_files_ftp.py**: Крадет файлы с FTP-серверов.
+- **steal_files_smb.py**: Крадет файлы из общих папок SMB.
+- **steal_files_ssh.py**: Крадет файлы с SSH-серверов.
+- **steal_files_telnet.py**: Крадет файлы с Telnet-серверов.
+- **steal_data_sql.py**: Извлекает данные из баз данных SQL.
  
-### 📇 Data Structure
+### 📇 Структура данных
 
-#### Network Knowledge Base (netkb.csv)
+#### База знаний сети (netkb.csv)
 
-Located at `data/netkb.csv`. Stores information about:
+Находится по адресу `data/netkb.csv`. Хранит информацию о:
 
-- Known hosts and their status. (Alive or offline)
-- Open ports and vulnerabilities.
-- Action execution history. (Success or failed)
+- Известных хостах и их статусе. (Активен или офлайн)
+- Открытых портах и уязвимостях.
+- Истории выполнения действий. (Успешно или неудачно)
 
-**Preview Example:**
+**Пример предварительного просмотра:**
 
 ![netkb1](https://github.com/infinition/Bjorn/assets/37984399/f641a565-2765-4280-a7d7-5b25c30dcea5)
 ![netkb2](https://github.com/infinition/Bjorn/assets/37984399/f08114a2-d7d1-4f50-b1c4-a9939ba66056)
 
-#### Scan Results
+#### Результаты сканирования
 
-Located in `data/output/scan_results/`.
-This file is generated everytime the network is scanned. It is used to consolidate the data and update netkb.
+Находятся в `data/output/scan_results/`.
+Этот файл генерируется каждый раз при сканировании сети. Он используется для консолидации данных и обновления netkb.
 
-**Example:**
+**Пример:**
 
-![Scan result](https://github.com/infinition/Bjorn/assets/37984399/eb4a313a-f90c-4c43-b699-3678271886dc)
+![Результат сканирования](https://github.com/infinition/Bjorn/assets/37984399/eb4a313a-f90c-4c43-b699-3678271886dc)
 
-#### Live Status (livestatus.csv)
+#### Текущий статус (livestatus.csv)
 
-Contains real-time information displayed on the e-Paper HAT:
+Содержит информацию в реальном времени, отображаемую на E-Paper HAT:
 
-- Total number of known hosts.
-- Currently alive hosts.
-- Open ports count.
-- Other runtime statistics.
+- Общее количество известных хостов.
+- Текущее количество активных хостов.
+- Количество открытых портов.
+- Другая статистика времени выполнения.
 
-## 📖 Detailed Project Description
+## 📖 Подробное описание проекта
 
-### 👀 Behavior of Bjorn
+### 👀 Поведение Bjorn
 
-Once launched, Bjorn performs the following steps:
+После запуска Bjorn выполняет следующие шаги:
 
-1. **Initialization**: Loads configuration, initializes shared data, and sets up necessary components such as the e-Paper HAT display.
-2. **Network Scanning**: Scans the network to identify live hosts and open ports. Updates the network knowledge base (`netkb`) with the results.
-3. **Orchestration**: Orchestrates different actions based on the configuration and network knowledge base. This includes performing vulnerability scanning, attacks, and file stealing.
-4. **Vulnerability Scanning**: Performs vulnerability scans on identified hosts and updates the vulnerability summary.
-5. **Brute-Force Attacks and File Stealing**: Starts brute-force attacks and steals files based on the configuration criteria.
-6. **Display Updates**: Continuously updates the e-Paper HAT display with current information such as network status, vulnerabilities, and various statistics. Bjorn also displays random comments based on different themes and statuses.
-7. **Web Server**: Provides a web interface for monitoring and interacting with Bjorn.
+1. **Инициализация**: Загружает конфигурацию, инициализирует общие данные и настраивает необходимые компоненты, такие как дисплей E-Paper HAT.
+2. **Сканирование сети**: Сканирует сеть для выявления активных хостов и открытых портов. Обновляет базу знаний сети (`netkb`) результатами.
+3. **Оркестрация**: Управляет различными действиями на основе конфигурации и базы знаний сети. Это включает выполнение сканирования уязвимостей, атак и кражу файлов.
+4. **Сканирование уязвимостей**: Выполняет сканирование уязвимостей на выявленных хостах и обновляет сводку уязвимостей.
+5. **Атаки методом перебора и кража файлов**: Начинает атаки методом перебора и крадет файлы на основе критериев конфигурации.
+6. **Обновления дисплея**: Постоянно обновляет дисплей E-Paper HAT текущей информацией, такой как состояние сети, уязвимости и различная статистика. Bjorn также отображает случайные комментарии на основе различных тем и статусов.
+7. **Веб-сервер**: Предоставляет веб-интерфейс для мониторинга и взаимодействия с Bjorn.
 
-## ▶️ Running Bjorn
+## ▶️ Запуск Bjorn
 
-### 📗 Manual Start
+### 📗 Ручной запуск
 
-To manually start Bjorn (without the service, ensure the service is  stopped « sudo systemctl stop bjorn.service »):
+Чтобы запустить Bjorn вручную (без службы, убедитесь, что служба остановлена «sudo systemctl stop bjorn.service»):
 
 ```bash
 cd /home/bjorn/Bjorn
 
-# Run Bjorn
+# Запустить Bjorn
 sudo python Bjorn.py
 ```
 
-### 🕹️ Service Control
+### 🕹️ Управление службой
 
-Control the Bjorn service:
+Управление службой Bjorn:
 
 ```bash
-# Start Bjorn
+# Запустить Bjorn
 sudo systemctl start bjorn.service
 
-# Stop Bjorn
+# Остановить Bjorn
 sudo systemctl stop bjorn.service
 
-# Check status
+# Проверить статус
 sudo systemctl status bjorn.service
 
-# View logs
+# Просмотреть журналы
 sudo journalctl -u bjorn.service
 ```
 
-### 🪄 Fresh Start
+### 🪄 Новый запуск
 
-To reset Bjorn to a clean state:
+Чтобы сбросить Bjorn в чистое состояние:
 
 ```bash
 sudo rm -rf /home/bjorn/Bjorn/config/*.json \
@@ -289,85 +289,85 @@ sudo rm -rf /home/bjorn/Bjorn/config/*.json \
 
 ```
 
-Everything will be recreated automatically at the next launch of Bjorn.
+Все будет автоматически воссоздано при следующем запуске Bjorn.
 
-## ❇️ Important Configuration Files
+## ❇️ Важные файлы конфигурации
 
-### 🔗 Shared Configuration (`shared_config.json`)
+### 🔗 Общая конфигурация (`shared_config.json`)
 
-Defines various settings for Bjorn, including:
+Определяет различные настройки для Bjorn, включая:
 
-- Boolean settings (`manual_mode`, `websrv`, `debug_mode`, etc.).
-- Time intervals and delays.
-- Network settings.
-- Port lists and blacklists.
-These settings are accessible on the webpage.
+- Логические настройки (`manual_mode`, `websrv`, `debug_mode` и т. д.).
+- Временные интервалы и задержки.
+- Сетевые настройки.
+- Списки портов и черные списки.
+Эти настройки доступны на веб-странице.
 
-### 🛠️ Actions Configuration (`actions.json`)
+### 🛠️ Конфигурация действий (`actions.json`)
 
-Lists the actions to be performed by Bjorn, including (dynamically generated with the content of the folder):
+Перечисляет действия, которые должен выполнять Bjorn, включая (динамически генерируется с содержимым папки):
 
-- Module and class definitions.
-- Port assignments.
-- Parent-child relationships.
-- Action status definitions.
+- Определения модулей и классов.
+- Назначения портов.
+- Родительско-дочерние отношения.
+- Определения статусов действий.
 
-## 📟 E-Paper Display Support
+## 📟 Поддержка дисплея E-Paper
 
-Currently, hardcoded for the 2.13-inch V2 & V4 e-Paper HAT. 
-My program automatically detect the screen model and adapt the python expressions into my code.
+В настоящее время жестко запрограммировано для 2,13-дюймового E-Paper HAT V2 и V4.
+Моя программа автоматически определяет модель экрана и адаптирует выражения Python в моем коде.
 
-For other versions:
-- As I don't have the v1 and v3 to validate my algorithm, I just hope it will work properly.
+Для других версий:
+- Поскольку у меня нет v1 и v3 для проверки моего алгоритма, я просто надеюсь, что он будет работать правильно.
 
-### 🍾 Ghosting Removed!
-In my journey to make Bjorn work with the different screen versions, I struggled, hacking several parameters and found out that it was possible to remove the ghosting of screens! I let you see this, I think this method will be very useful for all other projects with the e-paper screen!
+### 🍾 Устранение остаточного изображения!
+В своем стремлении заставить Bjorn работать с различными версиями экрана я столкнулся с трудностями, взламывая несколько параметров, и обнаружил, что можно устранить остаточное изображение на экранах! Позвольте вам это увидеть, я думаю, этот метод будет очень полезен для всех других проектов с экраном e-paper!
 
-## ✍️ Development Guidelines
+## ✍️ Руководство по разработке
 
-### ➕ Adding New Actions
+### ➕ Добавление новых действий
 
-1. Create a new action file in `actions/`.
-2. Implement required methods:
+1. Создайте новый файл действия в `actions/`.
+2. Реализуйте необходимые методы:
    - `__init__(self, shared_data)`
    - `execute(self, ip, port, row, status_key)`
-3. Add the action to `actions.json`.
-4. Follow existing action patterns.
+3. Добавьте действие в `actions.json`.
+4. Следуйте существующим шаблонам действий.
 
-### 🧪 Testing
+### 🧪 Тестирование
 
-1. Create a test environment.
-2. Use an isolated network.
-3. Follow ethical guidelines.
-4. Document test cases.
+1. Создайте тестовую среду.
+2. Используйте изолированную сеть.
+3. Следуйте этическим принципам.
+4. Документируйте тестовые случаи.
 
-## 💻 Web Interface
+## 💻 Веб-интерфейс
 
-- **Access**: `http://[device-ip]:8000`
-- **Features**:
-  - Real-time monitoring with a console.
-  - Configuration management.
-  - Viewing results. (Credentials and files)
-  - System control.
+- **Доступ**: `http://[IP-адрес-устройства]:8000`
+- **Возможности**:
+  - Мониторинг в реальном времени с консолью.
+  - Управление конфигурацией.
+  - Просмотр результатов. (Учетные данные и файлы)
+  - Управление системой.
 
-## 🧭 Project Roadmap
+## 🧭 План развития проекта
 
-### 🪛 Current Focus
+### 🪛 Текущий фокус
 
-- Stability improvements.
-- Bug fixes.
-- Service reliability.
-- Documentation updates.
+- Улучшение стабильности.
+- Исправление ошибок.
+- Надежность службы.
+- Обновление документации.
 
-### 🧷 Future Plans
+### 🧷 Будущие планы
 
-- Additional attack modules.
-- Enhanced reporting.
-- Improved user interface.
-- Extended protocol support.
+- Дополнительные модули атак.
+- Расширенная отчетность.
+- Улучшенный пользовательский интерфейс.
+- Расширенная поддержка протоколов.
 
 ---
 
-## 📜 License
+## 📜 Лицензия
 
-2024 - Bjorn is distributed under the MIT License. For more details, please refer to the [LICENSE](LICENSE) file included in this repository.
+2024 - Bjorn распространяется по лицензии MIT. Для получения более подробной информации см. файл [LICENSE](LICENSE), включенный в этот репозиторий.
