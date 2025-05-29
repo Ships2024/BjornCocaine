@@ -1,51 +1,51 @@
-# 🤝 Contributing to Bjorn
+# 🤝 Участие в Bjorn
 
-We welcome contributions to Bjorn! To make sure the process goes smoothly, please follow these guidelines:
+Мы приветствуем участие в Bjorn! Чтобы процесс прошел гладко, пожалуйста, следуйте этим рекомендациям:
 
-## 📋 Code of Conduct
+## 📋 Кодекс поведения
 
-Please note that all participants in our project are expected to follow our [Code of Conduct](#-code-of-conduct). Make sure to review it before contributing.
+Обратите внимание, что все участники нашего проекта должны соблюдать наш [Кодекс поведения](#-кодекс-поведения). Обязательно ознакомьтесь с ним перед участием.
 
-## 🛠 How to Contribute
+## 🛠 Как внести свой вклад
 
-1. **Fork the repository**:
-   Fork the project to your GitHub account using the GitHub interface.
+1. **Сделайте форк репозитория**:
+   Сделайте форк проекта в свой аккаунт GitHub с помощью интерфейса GitHub.
 
-2. **Create a new branch**:
-   Use a descriptive branch name for your feature or bugfix:
+2. **Создайте новую ветку**:
+   Используйте описательное имя ветки для вашей функции или исправления ошибки:
 
-   git checkout -b feature/your-feature-name
+   git checkout -b feature/ваше-имя-функции
 
-3. **Make your changes**:
-   Implement your feature or fix the bug in your branch. Make sure to include tests where applicable and follow coding standards.
+3. **Внесите свои изменения**:
+   Реализуйте свою функцию или исправьте ошибку в своей ветке. Убедитесь, что включили тесты, где это применимо, и следуйте стандартам кодирования.
 
-4. **Test your changes**:
-   Run the test suite to ensure your changes don’t break any functionality:
+4. **Протестируйте свои изменения**:
+   Запустите набор тестов, чтобы убедиться, что ваши изменения не нарушают никакой функциональности:
 
    - ...
-5. **Commit your changes**:
-   Use meaningful commit messages that explain what you have done:
+5. **Зафиксируйте свои изменения**:
+   Используйте осмысленные сообщения коммитов, которые объясняют, что вы сделали:
 
-   git commit -m "Add feature/fix: Description of changes"
+   git commit -m "Add feature/fix: Описание изменений"
 
-6. **Push your changes**:
-   Push your changes to your fork:
+6. **Отправьте свои изменения**:
+   Отправьте свои изменения в свой форк:
 
-   git push origin feature/your-feature-name
+   git push origin feature/ваше-имя-функции
 
-7. **Submit a Pull Request**:
-   Create a pull request on the main repository, detailing the changes you’ve made. Link any issues your changes resolve and provide context.
+7. **Отправьте Pull Request**:
+   Создайте pull request в основном репозитории, подробно описав внесенные вами изменения. Свяжите все проблемы, которые решают ваши изменения, и предоставьте контекст.
 
-## 📑 Guidelines for Contributions
+## 📑 Рекомендации по участию
 
-- **Lint your code** before submitting a pull request. We use [ESLint](https://eslint.org/) for frontend and [pylint](https://www.pylint.org/) for backend linting.
-- Ensure **test coverage** for your code. Uncovered code may delay the approval process.
-- Write clear, concise **commit messages**.
+- **Проверьте свой код линтером** перед отправкой pull request. Мы используем [ESLint](https://eslint.org/) для фронтенда и [pylint](https://www.pylint.org/) для бэкенда.
+- Обеспечьте **покрытие тестами** для вашего кода. Непокрытый код может задержать процесс утверждения.
+- Пишите четкие, краткие **сообщения коммитов**.
 
-Thank you for helping improve!
+Спасибо за помощь в улучшении!
 
 ---
 
-## 📜 License
+## 📜 Лицензия
 
-2024 - Bjorn is distributed under the MIT License. For more details, please refer to the [LICENSE](LICENSE) file included in this repository.
+2024 - Bjorn распространяется по лицензии MIT. Для получения более подробной информации см. файл [LICENSE](LICENSE), включенный в этот репозиторий.

@@ -1,40 +1,40 @@
-# 📝 Code of Conduct
+# 📝 Кодекс поведения
 
-Take Note About This... **Take Note...**
+Обратите внимание на это... **Обратите внимание...**
 
-## 🤝 Our Commitment
+## 🤝 Наши обязательства
 
-We are committed to fostering an open and welcoming environment for all contributors. As such, everyone who participates in **Bjorn** is expected to adhere to the following code of conduct.
+Мы стремимся создать открытую и гостеприимную среду для всех участников. Таким образом, каждый, кто участвует в **Bjorn**, должен соблюдать следующий кодекс поведения.
 
-## 🌟 Expected Behavior
+## 🌟 Ожидаемое поведение
 
-- **Respect:** Be respectful of differing viewpoints and experiences.
-- **Constructive Feedback:** Provide constructive feedback and be open to receiving it.
-- **Empathy and Kindness:** Show empathy and kindness towards other contributors.
-- **Respect for Maintainers:** Respect the decisions of the maintainers.
-- **Positive Intent:** Assume positive intent in interactions with others.
+- **Уважение:** Уважительно относитесь к различным точкам зрения и опыту.
+- **Конструктивная обратная связь:** Предоставляйте конструктивную обратную связь и будьте открыты для ее получения.
+- **Эмпатия и доброта:** Проявляйте эмпатию и доброту по отношению к другим участникам.
+- **Уважение к сопровождающим:** Уважайте решения сопровождающих.
+- **Позитивные намерения:** Предполагайте позитивные намерения во взаимодействии с другими.
 
-## 🚫 Unacceptable Behavior
+## 🚫 Неприемлемое поведение
 
-- **Harassment or Discrimination:** Harassment or discrimination in any form.
-- **Inappropriate Language or Imagery:** Use of inappropriate language or imagery.
-- **Personal Attacks:** Personal attacks or insults.
-- **Public or Private Harassment:** Public or private harassment.
+- **Домогательства или дискриминация:** Домогательства или дискриминация в любой форме.
+- **Неуместный язык или изображения:** Использование неуместного языка или изображений.
+- **Личные нападки:** Личные нападки или оскорбления.
+- **Публичные или частные домогательства:** Публичные или частные домогательства.
 
-## 📢 Reporting Misconduct
+## 📢 Сообщение о неправомерном поведении
 
-If you encounter any behavior that violates this code of conduct, please report it by contacting [bjorn-cyberviking@outlook.com](mailto:bjorn-cyberviking@outlook.com). All complaints will be reviewed and handled appropriately.
+Если вы столкнулись с каким-либо поведением, нарушающим этот кодекс поведения, сообщите об этом, связавшись с [bjorn-cyberviking@outlook.com](mailto:bjorn-cyberviking@outlook.com). Все жалобы будут рассмотрены и обработаны надлежащим образом.
 
-## ⚖️ Enforcement
+## ⚖️ Правоприменение
 
-Instances of unacceptable behavior may be addressed by the project maintainers, who are responsible for clarifying and enforcing this code of conduct. Violations may result in temporary or permanent bans from the project and related spaces.
+Случаи неприемлемого поведения могут рассматриваться сопровождающими проекта, которые несут ответственность за разъяснение и обеспечение соблюдения этого кодекса поведения. Нарушения могут привести к временному или постоянному запрету на участие в проекте и связанных с ним пространствах.
 
-## 🙏 Acknowledgments
+## 🙏 Благодарности
 
-This code of conduct is adapted from the [Contributor Covenant, version 2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct.html).
+Этот кодекс поведения адаптирован из [Contributor Covenant, версия 2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct.html).
 
 ---
 
-## 📜 License
+## 📜 Лицензия
 
-2024 - Bjorn is distributed under the MIT License. For more details, please refer to the [LICENSE](LICENSE) file included in this repository.
+2024 - Bjorn распространяется по лицензии MIT. Для получения более подробной информации см. файл [LICENSE](LICENSE), включенный в этот репозиторий.

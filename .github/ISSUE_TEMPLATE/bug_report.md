@@ -1,34 +1,34 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Отчет об ошибке
+about: Создайте отчет, чтобы помочь нам улучшиться
 title: ""
 labels: ""
 assignees: ""
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Опишите ошибку**
+Четкое и краткое описание ошибки.
 
-**To Reproduce**
-Steps to reproduce the behavior:
+**Шаги для воспроизведения**
+Шаги для воспроизведения поведения:
 
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+1. Перейдите к '...'
+2. Нажмите на '....'
+3. Прокрутите вниз до '....'
+4. См. ошибку
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Ожидаемое поведение**
+Четкое и краткое описание того, что вы ожидали увидеть.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Скриншоты**
+Если применимо, добавьте скриншоты, чтобы помочь объяснить вашу проблему.
 
-**Hardware (please complete the following information):**
+**Оборудование (пожалуйста, заполните следующую информацию):**
 
-- Device: [e.g. iPhone6]
-- OS: [e.g. iOS]
-- Browser [e.g. chrome, safari]
-- Version [e.g. 22]
+- Устройство: [например, iPhone6]
+- ОС: [например, iOS]
+- Браузер [например, chrome, safari]
+- Версия [например, 22]
 
-**Additional context**
-Add any other context about the problem here.
+**Дополнительный контекст**
+Добавьте любой другой контекст о проблеме здесь.
