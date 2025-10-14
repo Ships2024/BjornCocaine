@@ -103,5 +103,9 @@
     "timewait_telnet": 0,
     "timewait_ftp": 0,
     "timewait_sql": 0,
-    "timewait_rdp": 0
+    "timewait_rdp": 0,
+    "__title_web_auth__": "Bjorn Web Auth",
+    "web_auth_enabled": true,
+    "web_username": "admin",
+    "web_password": "changeme"
 }

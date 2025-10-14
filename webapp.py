@@ -9,6 +9,7 @@ import signal
 import os
 import gzip
 import io
+import base64
 from logger import Logger
 from init_shared import shared_data
 from utils import WebUtils
@@ -24,6 +25,40 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         self.shared_data = shared_data
         self.web_utils = WebUtils(shared_data, logger)
         super().__init__(*args, **kwargs)
+
+    def check_authentication(self):
+        """Check if HTTP Basic Authentication is valid."""
+        if not self.shared_data.config.get("web_auth_enabled", False):
+            return True
+
+        auth_header = self.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Basic '):
+            return False
+
+        try:
+            # Decode the base64 encoded credentials
+            encoded_credentials = auth_header.split(' ')[1]
+            decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+            username, password = decoded_credentials.split(':', 1)
+
+            # Check against configured credentials
+            expected_username = self.shared_data.config.get("web_username")
+            expected_password = self.shared_data.config.get("web_password")
+
+            return username == expected_username and password == expected_password
+        except (ValueError, UnicodeDecodeError):
+            return False
+
+    def send_auth_required_response(self):
+        """Send HTTP 401 Unauthorized response with authentication prompt."""
+        self.send_response(401)
+        self.send_header('WWW-Authenticate', 'Basic realm="Bjorn Web Panel"')
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b'<html><head><title>Authentication Required</title></head>')
+        self.wfile.write(b'<body><h1>Authentication Required</h1>')
+        self.wfile.write(b'<p>Please enter your username and password to access the Bjorn Web Panel.</p>')
+        self.wfile.write(b'</body></html>')
 
     def log_message(self, format, *args):
         # Override to suppress logging of GET requests.
@@ -58,6 +93,11 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         # Handle GET requests. Serve the HTML interface and the EPD image.
+        # Check authentication first
+        if not self.check_authentication():
+            self.send_auth_required_response()
+            return
+
         if self.path == '/index.html' or self.path == '/':
             self.serve_file_gzipped(os.path.join(self.shared_data.webdir, 'index.html'), 'text/html')
         elif self.path == '/config.html':
@@ -117,6 +157,11 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         # Handle POST requests for saving configuration, connecting to Wi-Fi, clearing files, rebooting, and shutting down.
+        # Check authentication first
+        if not self.check_authentication():
+            self.send_auth_required_response()
+            return
+
         if self.path == '/save_config':
             self.web_utils.save_configuration(self)
         elif self.path == '/connect_wifi':
