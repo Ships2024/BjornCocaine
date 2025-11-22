@@ -314,8 +314,8 @@ setup_bjorn() {
         echo -e "${GREEN}Using existing BJORN directory${NC}"
     else
         # No existing directory, proceed with clone
-        log "INFO" "Cloning BJORN repository"
-        git clone https://github.com/infinition/Bjorn.git
+        log "INFO" "Cloning BJORN repository from Gitea"
+        git clone git@192.168.1.119:brandon/bjorn-2.0.git Bjorn
         check_success "Cloned BJORN repository"
     fi
 
