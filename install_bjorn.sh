@@ -333,7 +333,7 @@ setup_bjorn() {
     else
         # No existing directory, proceed with clone
         log "INFO" "Cloning BJORN repository from Gitea (dev branch)"
-        git clone -b dev git@192.168.1.119:brandon/bjorn-2.0.git Bjorn
+        git clone -b dev http://192.168.1.119:3000/brandon/bjorn-2.0.git Bjorn
         check_success "Cloned BJORN repository"
     fi
 
