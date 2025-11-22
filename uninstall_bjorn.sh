@@ -68,9 +68,9 @@ stop_services() {
     fi
 
     # Kill any processes on port 8000
-    if lsof -i:8000 > /dev/null; then
+    if command -v lsof >/dev/null 2>&1 && lsof -i:8000 > /dev/null 2>&1; then
         log "INFO" "Killing processes on port 8000..."
-        lsof -ti:8000 | xargs kill -9
+        lsof -ti:8000 | xargs kill -9 2>/dev/null || true
     fi
 
     log "SUCCESS" "All services stopped"
@@ -101,7 +101,9 @@ reset_usb_config() {
     fi
     
     # Remove USB network configuration
-    sed -i '/allow-hotplug usb0/,+3d' /etc/network/interfaces
+    if [ -f /etc/network/interfaces ]; then
+        sed -i '/allow-hotplug usb0/,+3d' /etc/network/interfaces 2>/dev/null || true
+    fi
     
     log "SUCCESS" "USB configuration reset"
 }
