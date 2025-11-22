@@ -245,9 +245,22 @@ install_dependencies() {
     
     # Install packages
     for package in "${packages[@]}"; do
+        # Check if package is already installed
+        if dpkg -l | grep -q "^ii  $package "; then
+            log "INFO" "Package $package is already installed, skipping"
+            continue
+        fi
+        
         log "INFO" "Installing $package..."
-        apt-get install -y "$package"
-        check_success "Installed $package"
+        if apt-get install -y "$package" 2>&1 | tee -a "$LOG_FILE"; then
+            log "SUCCESS" "Installed $package"
+        else
+            log "WARNING" "Failed to install $package, but continuing (it might already be installed or not available)"
+            # Check if the package is actually available
+            if ! apt-cache show "$package" >/dev/null 2>&1; then
+                log "WARNING" "Package $package not found in repositories"
+            fi
+        fi
     done
     
     # Update nmap scripts
