@@ -682,13 +682,11 @@ main() {
     echo "3. Make sure your e-Paper HAT (2.13-inch) is properly connected"
 
     read -p "Would you like to reboot now? (y/n): " reboot_now
-    if [ "$reboot_now" = "y" ]; then
-        if reboot; then
-            log "INFO" "System reboot initiated."
-        else
-            log "ERROR" "Failed to initiate reboot."
-            exit 1
-        fi
+    if [ "$reboot_now" = "y" ] || [ "$reboot_now" = "Y" ]; then
+        log "INFO" "System rebooting in 3 seconds..."
+        echo -e "${MAGENTA}Rebooting now...${NC}"
+        sleep 1
+        /sbin/reboot
     else
         echo -e "${YELLOW}Reboot your system to apply all changes & run Bjorn service.${NC}"
     fi
