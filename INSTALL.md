@@ -99,7 +99,9 @@ sudo apt-get update && sudo apt-get upgrade -y
   bluez \
   dhcpcd5 \
   bridge-utils \
-  python3-pil
+  python3-pil \
+  python3-gpiozero \
+  python3-lgpio
 
 # For Debian Bookworm (12) and older, also install libatlas-base-dev
 # For Debian Trixie (13+), libopenblas-dev is sufficient

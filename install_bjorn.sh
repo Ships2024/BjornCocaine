@@ -228,6 +228,8 @@ install_dependencies() {
         "libgpiod-dev"
         "libi2c-dev"
         "build-essential"
+        "python3-gpiozero"
+        "python3-lgpio"
     )
     
     # For Debian Bookworm (12) and older, use libatlas-base-dev
