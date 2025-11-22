@@ -202,8 +202,8 @@ check_system_compatibility() {
 install_dependencies() {
     log "INFO" "Installing system dependencies..."
     
-    # Update package list
-    apt-get update
+    # Update package list with minimal output
+    apt-get update -qq
     
     # List of required packages based on README
     packages=(
@@ -245,28 +245,31 @@ install_dependencies() {
         fi
     fi
     
-    # Install packages
+    # Filter out already installed packages
+    packages_to_install=()
     for package in "${packages[@]}"; do
-        # Check if package is already installed
         if dpkg -l | grep -q "^ii  $package "; then
             log "INFO" "Package $package is already installed, skipping"
-            continue
-        fi
-        
-        log "INFO" "Installing $package..."
-        if apt-get install -y "$package" 2>&1 | tee -a "$LOG_FILE"; then
-            log "SUCCESS" "Installed $package"
         else
-            log "WARNING" "Failed to install $package, but continuing (it might already be installed or not available)"
-            # Check if the package is actually available
-            if ! apt-cache show "$package" >/dev/null 2>&1; then
-                log "WARNING" "Package $package not found in repositories"
-            fi
+            packages_to_install+=("$package")
         fi
     done
     
-    # Update nmap scripts
-    nmap --script-updatedb
+    # Install all packages at once (much faster than one-by-one)
+    if [ ${#packages_to_install[@]} -gt 0 ]; then
+        log "INFO" "Installing ${#packages_to_install[@]} packages in batch..."
+        if DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${packages_to_install[@]}" 2>&1 | tee -a "$LOG_FILE"; then
+            log "SUCCESS" "Batch package installation completed"
+        else
+            log "WARNING" "Some packages failed, continuing..."
+        fi
+    else
+        log "INFO" "All required packages are already installed"
+    fi
+    
+    # Update nmap scripts (run in background to save time)
+    log "INFO" "Updating nmap scripts database in background..."
+    nmap --script-updatedb > /dev/null 2>&1 &
     check_success "Dependencies installation completed"
 }
 
@@ -349,7 +352,8 @@ setup_bjorn() {
     # Install requirements with --break-system-packages flag
     log "INFO" "Installing Python requirements..."
     
-    pip3 install -r requirements.txt --break-system-packages
+    # Use --no-cache-dir to avoid cache write overhead
+    pip3 install --no-cache-dir -r requirements.txt --break-system-packages 2>&1 | tee -a "$LOG_FILE"
     check_success "Installed Python requirements"
 
     # Set correct permissions
