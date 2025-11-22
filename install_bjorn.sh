@@ -141,16 +141,17 @@ check_system_compatibility() {
             should_ask_confirmation=true
         fi
         
-        # Compare versions (expecting Bookworm = 12)
+        # Compare versions (expecting Bookworm = 12 or Trixie = 13)
         expected_version="12"
-        if [ "$VERSION_ID" != "$expected_version" ]; then
+        trixie_version="13"
+        if [ "$VERSION_ID" != "$expected_version" ] && [ "$VERSION_ID" != "$trixie_version" ]; then
             log "WARNING" "Different OS version detected"
-            echo -e "${YELLOW}This script was tested with Raspbian GNU/Linux 12 (bookworm)${NC}"
+            echo -e "${YELLOW}This script was tested with Raspbian GNU/Linux 12 (bookworm) and 13 (trixie)${NC}"
             echo -e "${YELLOW}Current system: ${PRETTY_NAME}${NC}"
             if [ "$VERSION_ID" -lt "$expected_version" ]; then
                 echo -e "${YELLOW}Your system version ($VERSION_ID) is older than recommended ($expected_version)${NC}"
-            elif [ "$VERSION_ID" -gt "$expected_version" ]; then
-                echo -e "${YELLOW}Your system version ($VERSION_ID) is newer than tested ($expected_version)${NC}"
+            elif [ "$VERSION_ID" -gt "$trixie_version" ]; then
+                echo -e "${YELLOW}Your system version ($VERSION_ID) is newer than tested ($trixie_version)${NC}"
             fi
             should_ask_confirmation=true
         else
@@ -226,9 +227,21 @@ install_dependencies() {
         "libssl-dev"
         "libgpiod-dev"
         "libi2c-dev"
-        "libatlas-base-dev"
         "build-essential"
     )
+    
+    # For Debian Bookworm (12) and older, use libatlas-base-dev
+    # For Debian Trixie (13) and newer, libopenblas-dev is sufficient (already in list)
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        if [ "$VERSION_ID" = "12" ] || [ "$VERSION_ID" -lt "12" ]; then
+            # Try to install libatlas-base-dev for older systems
+            if apt-cache show libatlas-base-dev >/dev/null 2>&1; then
+                packages+=("libatlas-base-dev")
+                log "INFO" "Adding libatlas-base-dev for Debian $VERSION_ID"
+            fi
+        fi
+    fi
     
     # Install packages
     for package in "${packages[@]}"; do

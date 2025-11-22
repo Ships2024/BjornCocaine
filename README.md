@@ -56,7 +56,8 @@ The e-Paper HAT display and web interface make it easy to monitor and interact w
     - Stable:
       - System: 32-bit
       - Kernel version: 6.6
-      - Debian version: 12 (bookworm) '2024-10-22-raspios-bookworm-armhf-lite'
+      - Debian version: 12 (bookworm) or 13 (trixie)
+      - Recommended: '2024-10-22-raspios-bookworm-armhf-lite'
 - Username and hostname set to `bjorn`.
 - 2.13-inch e-Paper HAT connected to GPIO pins.
 
@@ -70,7 +71,8 @@ I did not develop Bjorn for the raspberry pi zero w2 64bits, but several feedbac
     - Stable:
       - System: 64-bit
       - Kernel version: 6.6
-      - Debian version: 12 (bookworm) '2024-10-22-raspios-bookworm-arm64-lite'
+      - Debian version: 12 (bookworm) or 13 (trixie)
+      - Recommended: '2024-10-22-raspios-bookworm-arm64-lite'
 - Username and hostname set to `bjorn`.
 - 2.13-inch e-Paper HAT connected to GPIO pins.
 

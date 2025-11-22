@@ -21,7 +21,8 @@ https://www.raspberrypi.com/software/
     - Stable:
       - System: 32-bit
       - Kernel version: 6.6
-      - Debian version: 12 (bookworm) '2024-10-22-raspios-bookworm-armhf-lite'
+      - Debian version: 12 (bookworm) or 13 (trixie)
+      - Tested images: '2024-10-22-raspios-bookworm-armhf-lite'
 - Username and hostname set to `bjorn`.
 - 2.13-inch e-Paper HAT connected to GPIO pins.
 
@@ -35,7 +36,8 @@ I did not develop Bjorn for the raspberry pi zero w2 64bits, but several feedbac
     - Stable:
       - System: 64-bit
       - Kernel version: 6.6
-      - Debian version: 12 (bookworm) '2024-10-22-raspios-bookworm-arm64-lite'
+      - Debian version: 12 (bookworm) or 13 (trixie)
+      - Tested images: '2024-10-22-raspios-bookworm-arm64-lite'
 - Username and hostname set to `bjorn`.
 - 2.13-inch e-Paper HAT connected to GPIO pins.
 
@@ -85,7 +87,6 @@ sudo apt-get update && sudo apt-get upgrade -y
   libssl-dev \
   libgpiod-dev \
   libi2c-dev \
-  libatlas-base-dev \
   build-essential \
   python3-pip \
   wget \
@@ -99,6 +100,11 @@ sudo apt-get update && sudo apt-get upgrade -y
   dhcpcd5 \
   bridge-utils \
   python3-pil
+
+# For Debian Bookworm (12) and older, also install libatlas-base-dev
+# For Debian Trixie (13+), libopenblas-dev is sufficient
+# Try to install libatlas-base-dev if available:
+sudo apt install -y libatlas-base-dev 2>/dev/null || echo "libatlas-base-dev not available (OK on Trixie)"
 
 
 # Update Nmap scripts database
