@@ -5,9 +5,18 @@ and logs the successful login attempts.
 
 import os
 import pandas as pd
-import telnetlib
 import threading
 import logging
+import sys
+
+# Try importing telnetlib (removed in Python 3.13+)
+try:
+    import telnetlib
+except ImportError:
+    if sys.version_info >= (3, 13):
+        telnetlib = None  # Will be handled gracefully in the code
+    else:
+        raise
 import time
 from queue import Queue
 from rich.console import Console
@@ -88,6 +97,9 @@ class TelnetConnector:
         """
         Establish a Telnet connection and try to log in with the provided credentials.
         """
+        if telnetlib is None:
+            logger.error("Telnet not supported in Python 3.13+")
+            return False
         try:
             tn = telnetlib.Telnet(adresse_ip)
             tn.read_until(b"login: ", timeout=5)

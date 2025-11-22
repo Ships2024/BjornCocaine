@@ -3,9 +3,18 @@ steal_files_telnet.py - This script connects to remote Telnet servers using prov
 """
 
 import os
-import telnetlib
 import logging
 import time
+import sys
+
+# Try importing telnetlib (removed in Python 3.13+)
+try:
+    import telnetlib
+except ImportError:
+    if sys.version_info >= (3, 13):
+        telnetlib = None  # Will be handled gracefully in the code
+    else:
+        raise
 from rich.console import Console
 from threading import Timer
 from shared import SharedData
@@ -38,6 +47,9 @@ class StealFilesTelnet:
         """
         Establish a Telnet connection.
         """
+        if telnetlib is None:
+            logger.error("Telnet not supported in Python 3.13+")
+            return None
         try:
             tn = telnetlib.Telnet(ip)
             tn.read_until(b"login: ")
