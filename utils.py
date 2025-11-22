@@ -7,13 +7,14 @@ import json
 import csv
 import zipfile
 import uuid
-import cgi
 import io
 import importlib
 import logging
 from datetime import datetime
 from logger import Logger
 from urllib.parse import unquote
+from email import message_from_bytes
+from email.policy import default
 from actions.nmap_vuln_scanner import NmapVulnScanner
 
 
@@ -231,13 +232,30 @@ class WebUtils:
         try:
             content_length = int(handler.headers['Content-Length'])
             field_data = handler.rfile.read(content_length)
-            field_storage = cgi.FieldStorage(fp=io.BytesIO(field_data), headers=handler.headers, environ={'REQUEST_METHOD': 'POST'})
-
-            file_item = field_storage['file']
-            if file_item.filename:
-                backup_path = os.path.join(self.shared_data.upload_dir, file_item.filename)
+            
+            # Parse multipart form data using email module (Python 3.13+ compatible)
+            content_type = handler.headers.get('Content-Type', '')
+            msg = message_from_bytes(b'Content-Type: ' + content_type.encode() + b'\r\n\r\n' + field_data, policy=default)
+            
+            filename = None
+            file_content = None
+            
+            for part in msg.walk():
+                if part.get_content_disposition() == 'form-data':
+                    content_disposition = part.get('Content-Disposition', '')
+                    if 'filename=' in content_disposition:
+                        # Extract filename
+                        for item in content_disposition.split(';'):
+                            if 'filename=' in item:
+                                filename = item.split('=')[1].strip('"')
+                                break
+                        file_content = part.get_payload(decode=True)
+                        break
+            
+            if filename and file_content:
+                backup_path = os.path.join(self.shared_data.upload_dir, filename)
                 with open(backup_path, 'wb') as output_file:
-                    output_file.write(file_item.file.read())
+                    output_file.write(file_content)
 
                 with zipfile.ZipFile(backup_path, 'r') as backup_zip:
                     backup_zip.extractall(self.shared_data.currentdir)
