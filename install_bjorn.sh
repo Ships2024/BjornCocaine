@@ -10,7 +10,28 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
 NC='\033[0m'
+
+# Rainbow colors array
+RAINBOW_COLORS=(
+    '\033[0;31m'  # Red
+    '\033[0;33m'  # Yellow
+    '\033[0;32m'  # Green
+    '\033[0;36m'  # Cyan
+    '\033[0;34m'  # Blue
+    '\033[0;35m'  # Magenta
+)
+RAINBOW_INDEX=0
+
+# Function to get next rainbow color
+get_rainbow_color() {
+    local color="${RAINBOW_COLORS[$RAINBOW_INDEX]}"
+    RAINBOW_INDEX=$(( (RAINBOW_INDEX + 1) % ${#RAINBOW_COLORS[@]} ))
+    echo -e "$color"
+}
 
 # Logging configuration
 LOG_DIR="/var/log/bjorn_install"
@@ -30,12 +51,15 @@ if [[ "$1" == "--help" ]]; then
     exit 0
 fi
 
-# Function to display progress
+# Function to display progress with rainbow colors
 show_progress() {
-    echo -e "${BLUE}Step $CURRENT_STEP of $TOTAL_STEPS: $1${NC}"
+    local color=$(get_rainbow_color)
+    echo -e "${color}╔═══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${color}║ Step $CURRENT_STEP of $TOTAL_STEPS: $1"
+    echo -e "${color}╚═══════════════════════════════════════════════════════════╝${NC}"
 }
 
-# Logging function
+# Logging function with enhanced colors
 log() {
     local level=$1
     shift
@@ -43,10 +67,10 @@ log() {
     echo -e "$message" >> "$LOG_FILE"
     if [ "$VERBOSE" = true ] || [ "$level" != "DEBUG" ]; then
         case $level in
-            "ERROR") echo -e "${RED}$message${NC}" ;;
-            "SUCCESS") echo -e "${GREEN}$message${NC}" ;;
-            "WARNING") echo -e "${YELLOW}$message${NC}" ;;
-            "INFO") echo -e "${BLUE}$message${NC}" ;;
+            "ERROR") echo -e "${RED}✗ $message${NC}" ;;
+            "SUCCESS") echo -e "${GREEN}✓ $message${NC}" ;;
+            "WARNING") echo -e "${YELLOW}⚠ $message${NC}" ;;
+            "INFO") echo -e "${CYAN}ℹ $message${NC}" ;;
             *) echo -e "$message" ;;
         esac
     fi
@@ -549,6 +573,15 @@ clean_exit() {
 
 # Main installation process
 main() {
+    # Rainbow banner
+    echo -e "${RAINBOW_COLORS[0]}  ____     _ ___  ____  _   _ "
+    echo -e "${RAINBOW_COLORS[1]} | __ )   | / _ \\|  _ \\| \\ | |"
+    echo -e "${RAINBOW_COLORS[2]} |  _ \\ _ | | | | |_) |  \\| |"
+    echo -e "${RAINBOW_COLORS[3]} | |_) | |_| | |_| |  _ <| |\\  |"
+    echo -e "${RAINBOW_COLORS[4]} |____/ \\___/ \\___/|_| \\_\\_| \\_|"
+    echo -e "${RAINBOW_COLORS[5]}                                  ${NC}"
+    echo -e "${MAGENTA}═══════════════════════════════════════${NC}"
+    
     log "INFO" "Starting BJORN installation..."
 
     # Check if script is run as root
@@ -557,7 +590,7 @@ main() {
         exit 1
     fi
 
-    echo -e "${BLUE}BJORN Installation Options:${NC}"
+    echo -e "${CYAN}BJORN Installation Options:${NC}"
     echo "1. Full installation (recommended)"
     echo "2. Custom installation"
     read -p "Choose an option (1/2): " install_option
