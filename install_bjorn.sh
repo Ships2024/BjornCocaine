@@ -574,12 +574,12 @@ clean_exit() {
 # Main installation process
 main() {
     # Rainbow banner
-    echo -e "${RAINBOW_COLORS[0]}  ____     _ ___  ____  _   _ "
-    echo -e "${RAINBOW_COLORS[1]} | __ )   | / _ \\|  _ \\| \\ | |"
-    echo -e "${RAINBOW_COLORS[2]} |  _ \\ _ | | | | |_) |  \\| |"
+    echo -e "${RAINBOW_COLORS[0]}  ____      _  ___  ____  _   _ "
+    echo -e "${RAINBOW_COLORS[1]} | __ )    | |/ _ \\|  _ \\| \\ | |"
+    echo -e "${RAINBOW_COLORS[2]} |  _ \\ _ | | | | | |_) |  \\| |"
     echo -e "${RAINBOW_COLORS[3]} | |_) | |_| | |_| |  _ <| |\\  |"
     echo -e "${RAINBOW_COLORS[4]} |____/ \\___/ \\___/|_| \\_\\_| \\_|"
-    echo -e "${RAINBOW_COLORS[5]}                                  ${NC}"
+    echo -e "${RAINBOW_COLORS[5]}                                   ${NC}"
     echo -e "${MAGENTA}═══════════════════════════════════════${NC}"
     
     log "INFO" "Starting BJORN installation..."
