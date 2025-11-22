@@ -134,10 +134,10 @@ check_system_compatibility() {
     if [ -f "/etc/os-release" ]; then
         source /etc/os-release
         
-        # Verify if it's Raspbian
-        if [ "$NAME" != "Raspbian GNU/Linux" ]; then
-            log "WARNING" "Different OS detected. Recommended: Raspbian GNU/Linux, Found: ${NAME}"
-            echo -e "${YELLOW}Your system is not running Raspbian GNU/Linux.${NC}"
+        # Verify if it's Raspbian or Debian (both are valid for Pi)
+        if [ "$NAME" != "Raspbian GNU/Linux" ] && [ "$NAME" != "Debian GNU/Linux" ]; then
+            log "WARNING" "Different OS detected. Recommended: Raspbian/Debian GNU/Linux, Found: ${NAME}"
+            echo -e "${YELLOW}Your system is not running Raspbian or Debian GNU/Linux.${NC}"
             should_ask_confirmation=true
         fi
         
@@ -162,11 +162,11 @@ check_system_compatibility() {
         should_ask_confirmation=true
     fi
 
-    # Check if system is 32-bit ARM (armhf)
+    # Check if system is ARM (armhf or arm64)
     architecture=$(dpkg --print-architecture)
-    if [ "$architecture" != "armhf" ]; then
-        log "WARNING" "Different architecture detected. Expected: armhf, Found: ${architecture}"
-        echo -e "${YELLOW}This script was tested with armhf architecture${NC}"
+    if [ "$architecture" != "armhf" ] && [ "$architecture" != "arm64" ]; then
+        log "WARNING" "Different architecture detected. Expected: armhf or arm64, Found: ${architecture}"
+        echo -e "${YELLOW}This script was tested with armhf (32-bit) and arm64 (64-bit) architectures${NC}"
         should_ask_confirmation=true
     fi
     
