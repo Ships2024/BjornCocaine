@@ -12,7 +12,7 @@
 # - is_wifi_connected: Checks for Wi-Fi connectivity using the nmcli command.
 
 # The script starts by loading shared data configurations, then initializes and sta
-# bjorn.py
+# bjorn.py test
 
 
 import threading
