@@ -1425,7 +1425,7 @@
 
         const MIN_SWIPE_DISTANCE = 50;     // minimal movement to count as a swipe
         const MAX_VERTICAL_DRIFT = 80;     // tolerance to avoid accidental scroll/swipe mix
-        const EDGE_ZONE = 40;              // swipe must start within 40px from screen left
+        const EDGE_ZONE = 200;              // swipe must start within 200px from screen left
 
         document.addEventListener("touchstart", (e) => {
             const t = e.changedTouches[0];
