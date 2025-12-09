@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BJORN // WIKI NODE</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* --- THEME ENGINE (CSS Variables) --- */
+        :root {
+            --bg-body: #0B0C0E;
+            --bg-sidebar: #111214;
+            --border-color: #2A2E35;
+            --text-main: #A0AAB8;
+            --text-heading: #E2E8F0;
+            --accent-green: #22c55e;
+            --accent-dim: rgba(34, 197, 94, 0.1);
+            --code-bg: #1e1e1e;
+        }
+
+        /* Light Mode Overrides */
+        html.light {
+            --bg-body: #F8FAFC;
+            --bg-sidebar: #FFFFFF;
+            --border-color: #E2E8F0;
+            --text-main: #475569;
+            --text-heading: #1E293B;
+            --accent-green: #16a34a;
+            --accent-dim: rgba(22, 163, 74, 0.1);
+            --code-bg: #f1f5f9;
+        }
+
+        /* Base Settings */
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Utility Classes using vars */
+        .bg-hack-sidebar {
+            background-color: var(--bg-sidebar);
+        }
+
+        .bg-hack-bg {
+            background-color: var(--bg-body);
+        }
+
+        .border-hack-border {
+            border-color: var(--border-color);
+        }
+
+        .text-hack-heading {
+            color: var(--text-heading);
+        }
+
+        .text-hack-green {
+            color: var(--accent-green);
+        }
+
+        .bg-hack-greenDim {
+            background-color: var(--accent-dim);
+        }
+
+        /* Sidebar Animations */
+        .sidebar-mobile {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* --- MARKDOWN STYLES --- */
+        .markdown-body h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .markdown-body h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            margin-top: 3rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            scroll-margin-top: 80px;
+            position: relative;
+        }
+
+        .markdown-body h2:hover .anchor-link {
+            opacity: 1;
+        }
+
+        .markdown-body h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-heading);
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+            scroll-margin-top: 80px;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .markdown-body h3:hover .anchor-link {
+            opacity: 1;
+        }
+
+        /* Anchor Links (#) */
+        .anchor-link {
+            margin-left: 0.5rem;
+            color: var(--accent-green);
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8em;
+            text-decoration: none;
+            user-select: none;
+        }
+
+        .markdown-body p {
+            margin-bottom: 1.25rem;
+            line-height: 1.7;
+        }
+
+        .markdown-body ul {
+            list-style: none;
+            margin-bottom: 1.25rem;
+            padding-left: 1rem;
+        }
+
+        .markdown-body li {
+            margin-bottom: 0.5rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .markdown-body li::before {
+            content: "›";
+            color: var(--accent-green);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        /* Code Blocks */
+        .markdown-body pre {
+            background-color: var(--code-bg) !important;
+            padding: 0 !important;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .markdown-body pre code.hljs {
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            background-color: transparent;
+        }
+
+        /* Inline Code */
+        .markdown-body :not(pre)>code {
+            background-color: var(--accent-dim);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875em;
+            color: var(--accent-green);
+            border: 1px solid var(--border-color);
+        }
+
+        .markdown-body a {
+            color: var(--accent-green);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+            font-weight: 500;
+        }
+
+        .markdown-body a:hover {
+            border-bottom-color: var(--accent-green);
+        }
+
+        .markdown-body blockquote {
+            border-left: 4px solid var(--accent-green);
+            padding-left: 1rem;
+            margin-left: 0;
+            font-style: italic;
+            background: var(--accent-dim);
+            padding: 1rem;
+            border-radius: 0 4px 4px 0;
+            color: var(--text-heading);
+        }
+
+        .markdown-body strong {
+            color: var(--text-heading);
+            font-weight: 700;
+        }
+
+        /* Images & Lightbox */
+        .markdown-body img {
+            max-width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            cursor: zoom-in;
+            transition: transform 0.2s;
+        }
+
+        .markdown-body img:hover {
+            border-color: var(--accent-green);
+        }
+
+        #lightbox {
+            transition: opacity 0.3s ease, visibility 0.3s;
+        }
+
+        #lightbox.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #lightbox img {
+            max-height: 90vh;
+            max-width: 90vw;
+            object-fit: contain;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+        }
+
+        /* UI Elements */
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .markdown-body pre:hover .copy-btn {
+            opacity: 1;
+        }
+
+        .copy-btn:hover {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        /* Reading Progress Bar */
+        #reading-progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background-color: var(--accent-green);
+            width: 0%;
+            z-index: 100;
+            transition: width 0.1s;
+            pointer-events: none;
+        }
+
+        /* Navigation */
+        .nav-list {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .nav-list.collapsed {
+            max-height: 0;
+        }
+
+        .nav-list.expanded {
+            max-height: 1000px;
+        }
+
+        .section-arrow {
+            transition: transform 0.2s;
+        }
+
+        .section-header.active .section-arrow {
+            transform: rotate(90deg);
+        }
+
+        .nav-link.active {
+            background-color: var(--accent-dim);
+            color: var(--accent-green);
+            border-left: 2px solid var(--accent-green);
+            padding-left: 0.5rem !important;
+        }
+
+        /* TOC & Scroll */
+        .toc-link.active {
+            color: var(--accent-green);
+            border-left-color: var(--accent-green);
+        }
+
+        #scroll-top-btn {
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        #scroll-top-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+
+        /* Animations */
+        @keyframes pulse-green {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .version-loading {
+            animation: pulse-green 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Focus & Inputs */
+        input {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            border-color: var(--border-color);
+        }
+
+        input:focus {
+            border-color: var(--accent-green);
+            outline: none;
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--accent-green);
+            outline-offset: 2px;
+        }
+
+        /* --- PRINT STYLESHEET --- */
+        @media print {
+            body {
+                background-color: white !important;
+                color: black !important;
+                display: block;
+            }
+
+            #sidebar,
+            header,
+            #theme-toggle-desktop,
+            #scroll-top-btn,
+            #reading-progress-bar,
+            #overlay {
+                display: none !important;
+            }
+
+            .markdown-body,
+            #scroll-container,
+            .flex-1,
+            .h-screen {
+                height: auto !important;
+                overflow: visible !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+
+            .markdown-body pre {
+                border: 1px solid #ccc;
+                background-color: #f5f5f5 !important;
+                page-break-inside: avoid;
+            }
+
+            .markdown-body a {
+                color: black !important;
+                text-decoration: underline;
+                border: none;
+            }
+
+            .markdown-body h1,
+            .markdown-body h2,
+            .markdown-body h3 {
+                color: black !important;
+                page-break-after: avoid;
+            }
+
+            .copy-btn {
+                display: none;
+            }
+
+            .toc-container {
+                display: none;
+            }
+
+            aside {
+                display: none;
+            }
+
+            #page-nav {
+                display: none;
+            }
+
+            #breadcrumbs {
+                color: black !important;
+                border-bottom: 1px solid #ccc;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        hack: {
+                            green: 'var(--accent-green)',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        sans: ['"Inter"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="font-sans antialiased h-screen flex flex-col md:flex-row overflow-hidden transition-colors duration-300">
+
+    <div id="reading-progress-bar"></div>
+
+    <div id="lightbox"
+        class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center opacity-0 invisible cursor-zoom-out"
+        onclick="closeLightbox()">
+        <img id="lightbox-img" src="" alt="Full view"
+            class="rounded-lg border border-hack-border transform scale-95 transition-transform duration-300">
+    </div>
+
+    <header
+        class="md:hidden flex-none bg-hack-sidebar border-b border-hack-border h-16 flex items-center justify-between px-4 z-[60] relative shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10">
+                <img src="assets/bjorn.png" alt="Bjorn Icon"
+                    class="w-full h-full object-contain drop-shadow-[0_0_5px_rgba(34,197,94,0.3)]">
+            </div>
+            <span class="font-bold text-hack-heading tracking-wide flex items-center gap-2">
+                BJORN <span class="version-display text-hack-green text-[10px] font-mono opacity-80 pt-1">...</span>
+            </span>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button id="theme-toggle-mobile"
+                class="text-gray-300 dark:text-gray-200 hover:text-hack-green p-2 transition-colors">
+                <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+                <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+            </button>
+            <button id="menu-btn"
+                class="flex items-center gap-2 px-3 py-1.5 rounded bg-hack-bg border border-hack-border text-hack-heading active:bg-hack-greenDim transition-colors">
+                <span class="text-xs font-mono font-bold uppercase tracking-wider">Menu</span>
+                <i data-lucide="menu" class="w-5 h-5 text-hack-green"></i>
+            </button>
+        </div>
+    </header>
+
+    <div id="overlay"
+        class="fixed inset-0 bg-black/80 backdrop-blur-[2px] z-[65] hidden transition-opacity opacity-0 md:hidden">
+    </div>
+
+    <aside id="sidebar"
+        class="sidebar-mobile fixed top-0 bottom-0 left-0 z-[70] w-[280px] bg-hack-sidebar border-r border-hack-border transform -translate-x-full md:translate-x-0 md:static md:h-full flex flex-col shadow-2xl md:shadow-none transition-transform duration-300">
+
+        <div class="p-5 border-b border-hack-border relative flex-none">
+            <button id="close-sidebar-btn" class="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 shrink-0">
+                        <img src="assets/bjorn.png" alt="Bjorn Icon"
+                            class="w-full h-full object-contain drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]">
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-hack-heading leading-none text-lg">BJORN</h1>
+                        <p class="version-display text-[10px] text-gray-500 font-mono mt-1 flex items-center gap-2">
+                            <span class="version-loading">checking...</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 relative group">
+                <i data-lucide="search" class="absolute left-2.5 top-2.5 w-4 h-4 text-gray-500"></i>
+                <input type="text" id="search-input" placeholder="Search (Ctrl+K)..."
+                    class="w-full border rounded py-1.5 pl-8 pr-8 text-base md:text-sm shadow-sm transition-colors appearance-none">
+
+                <button id="search-clear"
+                    class="absolute right-0 top-0 bottom-0 px-2 flex items-center justify-center text-hack-green hover:text-white transition-all z-20 cursor-pointer opacity-0 pointer-events-none"
+                    title="Clear search (Esc)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto flex flex-col" role="navigation" aria-label="Main Navigation">
+
+            <div class="px-3 pt-4">
+                <div class="nav-group mb-1">
+                    <button id="btn-versions"
+                        class="w-full text-left px-2 py-2 flex items-center justify-between text-gray-500 hover:text-hack-heading transition-colors cursor-pointer group rounded hover:bg-hack-bg focus:bg-hack-bg outline-none"
+                        onclick="toggleVersionsPage(this)" tabindex="0">
+                        <div
+                            class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest font-mono text-hack-green">
+                            <i data-lucide="history" class="w-3 h-3"></i> Changelog
+                        </div>
+                        <i data-lucide="chevron-right"
+                            class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                    </button>
+                </div>
+            </div>
+
+            <nav class="pb-4 px-3 space-y-2 flex-none" id="nav-container">
+                <div class="text-center text-xs text-gray-500 mt-4 p-4">
+                    <div
+                        class="w-4 h-4 border-2 border-hack-green border-t-transparent rounded-full animate-spin mx-auto mb-2">
+                    </div>
+                    Loading wiki...
+                </div>
+            </nav>
+
+            <div id="search-results-msg" class="hidden px-4 py-2 text-xs text-red-400 text-center italic">
+                No results found.
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-hack-border bg-hack-bg/30 flex-none">
+            <div class="text-center">
+                <strong class="text-gray-500 text-sm block mb-3 font-mono tracking-wide">:: JOIN US ::</strong>
+                <div class="flex flex-col gap-2.5">
+
+                    <a href="https://discord.gg/B3ZH9taVfT" target="_blank"
+                        class="hover:opacity-80 transition-opacity block">
+                        <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FB3ZH9taVfT%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&logo=discord&logoColor=white&style=for-the-badge&label=BJORN&color=5865F2&labelColor=2A2E35"
+                            alt="Discord BJORN" class="w-full" />
+                    </a>
+
+                    <a href="https://www.reddit.com/r/Bjorn_CyberViking/" target="_blank"
+                        class="hover:opacity-80 transition-opacity block">
+                        <img src="https://img.shields.io/reddit/subreddit-subscribers/Bjorn_CyberViking?style=for-the-badge&logo=reddit&label=r/Bjorn&color=FF4500&labelColor=2A2E35&logoColor=white"
+                            alt="Reddit" class="w-full" />
+                    </a>
+
+                    <a href="https://github.com/infinition/Bjorn" target="_blank"
+                        class="hover:opacity-80 transition-opacity block">
+                        <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Finfinition%2FBjorn&query=%24.stargazers_count&style=for-the-badge&logo=github&color=0B0C0E&labelColor=2A2E35&label=BJORN&logoColor=white"
+                            alt="GitHub BJORN" class="w-full" />
+                    </a>
+
+                    <a href="https://buymeacoffee.com/infinition" target="_blank"
+                        class="hover:opacity-80 transition-opacity block pt-2 border-t border-hack-border/30 mt-1">
+                        <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black"
+                            alt="Buy Me A Coffee" class="w-full" />
+                    </a>
+
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+
+        <main class="flex-1 overflow-y-auto bg-hack-bg scroll-smooth relative w-full" id="scroll-container">
+            <div class="max-w-6xl mx-auto px-5 py-8 md:py-12 md:px-10 flex gap-10">
+
+                <div class="flex-1 min-w-0">
+                    <div
+                        class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-2 border-b border-hack-border/50 pb-4">
+                        <div class="flex items-center gap-2 text-xs font-mono text-gray-500 overflow-x-auto whitespace-nowrap pb-2 md:pb-0"
+                            id="breadcrumbs"></div>
+
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="flex items-center gap-4 text-[10px] font-mono text-gray-500 uppercase tracking-wider shrink-0">
+                                <span id="reading-time" class="hidden md:block"></span>
+                                <span id="last-updated" class="hidden md:block text-hack-green opacity-80"></span>
+                            </div>
+
+                            <button id="theme-toggle-desktop"
+                                class="text-gray-500 hover:text-hack-green transition-colors hidden md:block bg-hack-sidebar border border-hack-border rounded p-1.5"
+                                title="Toggle Theme">
+                                <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                                <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="markdown-viewer" class="markdown-body min-h-[50vh]"></div>
+
+                    <div id="page-nav"
+                        class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12 pt-8 border-t border-hack-border empty:hidden">
+                    </div>
+
+                    <div class="h-20"></div>
+                </div>
+
+                <aside class="hidden xl:block w-64 shrink-0">
+                    <div class="sticky top-6">
+                        <h4
+                            class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 border-b border-hack-border pb-2">
+                            On this page</h4>
+                        <ul id="toc-container" class="space-y-2 text-xs border-l border-hack-border pl-3">
+                        </ul>
+                    </div>
+                </aside>
+
+            </div>
+        </main>
+
+        <button id="scroll-top-btn"
+            class="absolute bottom-6 right-6 p-3 rounded-full bg-hack-greenDim border border-hack-border text-hack-green hover:bg-hack-green hover:text-white shadow-lg hidden z-30"
+            title="Back to Top">
+            <i data-lucide="arrow-up" class="w-5 h-5"></i>
+        </button>
+    </div>
+
+    <script>
+        // --- 1. CONFIG & STATE ---
+        const renderer = new marked.Renderer();
+        // OPTIMIZATION: Lazy loading images
+        renderer.image = function (href, title, text) {
+            return `<img src="${href}" alt="${text}" title="${title || ''}" loading="lazy" class="rounded-lg border border-hack-border">`;
+        };
+        marked.use({ renderer });
+        marked.setOptions({ breaks: true, gfm: true });
+
+        const STATE = {
+            wikiData: {},
+            contentCache: {}, // OPTIMIZATION: Memory Cache
+            searchIndex: [], // FULL TEXT SEARCH INDEX
+            expandedSections: new Set(),
+            releasesPage: 1,
+            releasesPerPage: 10,
+            currentPath: null,
+            repo: "infinition/Bjorn"
+        };
+
+        // --- 2. THEME ENGINE ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            } else {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        document.getElementById('theme-toggle-desktop').onclick = toggleTheme;
+        document.getElementById('theme-toggle-mobile').onclick = toggleTheme;
+        initTheme();
+
+        // --- 3. FETCH DATA ---
+        async function fetchLatestVersion() {
+            const CACHE_KEY = 'bjorn_ver';
+            const CACHE_TS = 'bjorn_ts';
+            const now = Date.now();
+
+            if (localStorage.getItem(CACHE_KEY) && (now - localStorage.getItem(CACHE_TS) < 3600000)) {
+                updateVersionUI(localStorage.getItem(CACHE_KEY), true);
+                return;
+            }
+
+            try {
+                let ver = "v2.0";
+                const res = await fetch(`https://api.github.com/repos/${STATE.repo}/releases/latest`);
+
+                if (res.ok) {
+                    const data = await res.json();
+                    ver = data.tag_name;
+                } else {
+                    const tagsRes = await fetch(`https://api.github.com/repos/${STATE.repo}/tags`);
+                    if (tagsRes.ok) {
+                        const tags = await tagsRes.json();
+                        if (tags.length > 0) ver = tags[0].name;
+                    }
+                }
+
+                localStorage.setItem(CACHE_KEY, ver);
+                localStorage.setItem(CACHE_TS, now);
+                updateVersionUI(ver, true);
+            } catch (e) {
+                updateVersionUI("v2.0", false);
+            }
+        }
+
+        function updateVersionUI(ver, success) {
+            document.querySelectorAll('.version-display').forEach(el => {
+                el.innerHTML = ver;
+                if (success) el.classList.add('text-hack-green');
+            });
+        }
+
+        // --- 4. WIKI CORE & ERROR HANDLING ---
+        async function initWiki() {
+            try {
+                const res = await fetch('wiki/structure.json');
+                if (!res.ok) throw new Error("Config missing");
+                STATE.wikiData = await res.json();
+
+                const firstFolder = Object.keys(STATE.wikiData)[0];
+                if (firstFolder) STATE.expandedSections.add(firstFolder);
+
+                renderSidebar();
+
+                // BUILD FULL TEXT SEARCH INDEX IN BACKGROUND
+                buildSearchIndex();
+
+                window.onpopstate = (event) => {
+                    if (event.state) {
+                        if (event.state.page === 'versions') toggleVersionsPage(null, false);
+                        else loadContent(event.state.folder, event.state.title, event.state.filename, false);
+                    }
+                };
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const pageParam = urlParams.get('page');
+
+                if (pageParam === 'changelog') {
+                    toggleVersionsPage(null, false);
+                } else if (pageParam) {
+                    let found = false;
+                    for (const [folder, files] of Object.entries(STATE.wikiData)) {
+                        for (const [title, file] of Object.entries(files)) {
+                            if (`${folder}/${file}` === pageParam) {
+                                loadContent(folder, title, file, false);
+                                STATE.expandedSections.add(folder);
+                                renderSidebar();
+                                found = true; break;
+                            }
+                        }
+                        if (found) break;
+                    }
+                    if (!found) loadDefault();
+                } else {
+                    loadDefault();
+                }
+
+            } catch (e) {
+                showErrorState();
+            }
+        }
+
+        // FULL TEXT INDEXER
+        async function buildSearchIndex() {
+            const promises = [];
+            for (const [folder, files] of Object.entries(STATE.wikiData)) {
+                for (const [title, filename] of Object.entries(files)) {
+                    promises.push(
+                        fetch(`wiki/${folder}/${filename}`)
+                            .then(res => res.text())
+                            .then(text => {
+                                STATE.searchIndex.push({
+                                    folder,
+                                    title,
+                                    filename,
+                                    content: text.toLowerCase(),
+                                    titleLower: title.toLowerCase()
+                                });
+                            })
+                            .catch(err => console.log("Failed to index", filename))
+                    );
+                }
+            }
+            await Promise.all(promises);
+            console.log("Full text index built:", STATE.searchIndex.length, "pages.");
+        }
+
+        function loadDefault() {
+            const firstFolder = Object.keys(STATE.wikiData)[0];
+            const firstFile = Object.keys(STATE.wikiData[firstFolder])[0];
+            loadContent(firstFolder, firstFile, STATE.wikiData[firstFolder][firstFile], true);
+        }
+
+        function showErrorState() {
+            document.getElementById('nav-container').innerHTML = `<div class="p-4 text-xs text-red-400 border border-red-900 bg-red-900/10 rounded m-2 font-mono"><strong>[!] CONFIG ERROR</strong><br>Missing 'wiki/structure.json'.</div>`;
+
+            // FULLY RESTORED DATA AS REQUESTED
+            document.getElementById('markdown-viewer').innerHTML = `
+            <h1>Wiki Setup Required</h1>
+            <p>To use this wiki, please create the following folder structure in the root:</p>
+            
+            <h3>1. Create Folder Structure</h3>
+            <pre><code>/ (Root of your site)
+├── index.html
+├── assets/
+│   └── bjorn.png
+└── wiki/
+    ├── structure.json
+    ├── 01_General/
+    │   └── Introduction.md
+    └── 02_Setup/
+        └── Installation.md</code></pre>
+
+            <h3>2. Create <code>wiki/structure.json</code></h3>
+            <pre><code>{
+  "01_General": {
+    "Introduction": "Introduction.md"
+  },
+  "02_Setup": {
+    "Installation": "Installation.md"
+  }
+}</code></pre>
+            <blockquote><strong>Note:</strong> You must run this via a local server (e.g., Live Server in VS Code) for fetch() to work. Opening index.html directly won't load external files.</blockquote>
+            `;
+        }
+
+        // --- 5. CONTENT LOADER & FEATURES ---
+        async function loadContent(folder, title, filename, pushHistory = true) {
+            const viewer = document.getElementById('markdown-viewer');
+            const scrollContainer = document.getElementById('scroll-container');
+            const pageNav = document.getElementById('page-nav');
+            const readingTimeEl = document.getElementById('reading-time');
+            const lastUpdatedEl = document.getElementById('last-updated');
+
+            // UI Reset
+            if (!STATE.contentCache[`${folder}/${filename}`]) {
+                viewer.innerHTML = `<div class="animate-pulse space-y-4"><div class="h-4 bg-gray-700 rounded w-3/4"></div><div class="h-4 bg-gray-700 rounded w-1/2"></div></div>`;
+            }
+            pageNav.innerHTML = '';
+            readingTimeEl.innerHTML = '';
+            lastUpdatedEl.innerHTML = '';
+
+            try {
+                let text;
+                const cacheKey = `${folder}/${filename}`;
+
+                // OPTIMIZATION: Check Cache
+                if (STATE.contentCache[cacheKey]) {
+                    text = STATE.contentCache[cacheKey];
+                } else {
+                    const res = await fetch(`wiki/${folder}/${filename}`);
+                    if (!res.ok) throw new Error("404");
+                    text = await res.text();
+                    STATE.contentCache[cacheKey] = text; // Set Cache
+                }
+
+                // Sanitize and Parse
+                const rawHTML = marked.parse(text);
+                viewer.innerHTML = DOMPurify.sanitize(rawHTML);
+
+                // UX: Calculate Reading Time
+                const wordCount = text.replace(/[#*`]/g, '').split(/\s+/).length;
+                const readingTime = Math.ceil(wordCount / 200);
+                readingTimeEl.textContent = `~${readingTime} min read`;
+
+                // UX: Fetch Last Updated (Async, non-blocking)
+                fetchLastUpdated(folder, filename);
+
+                // Enhance Features
+                enhanceMarkdownContent();
+                generateTOC();
+                renderPagination(folder, title);
+
+                // Breadcrumbs
+                const cleanFolder = folder.replace(/^\d+_/, '').replace(/_/g, ' ');
+                document.getElementById('breadcrumbs').innerHTML = `
+                    <span class="hover:text-hack-heading cursor-pointer">wiki</span> <span>/</span> 
+                    <span>${cleanFolder}</span> <span>/</span> <span class="text-hack-green font-bold">${title}</span>
+                `;
+
+                if (pushHistory) {
+                    const newUrl = `?page=${folder}/${filename}`;
+                    window.history.pushState({ folder, title, filename }, "", newUrl);
+                }
+
+                if (window.location.hash) {
+                    const el = document.getElementById(window.location.hash.substring(1));
+                    if (el) el.scrollIntoView();
+                } else {
+                    scrollContainer.scrollTop = 0;
+                }
+
+                if (window.innerWidth < 768) closeMenu();
+
+                // OPTIMIZATION: Predictive Preloading
+                preloadAdjacent(folder, title);
+
+            } catch (e) {
+                console.error(e);
+                viewer.innerHTML = `<h1>Page Not Found</h1><p>Could not load ${filename}</p>`;
+            }
+        }
+
+        // UX: Fetch Last commit date for file
+        async function fetchLastUpdated(folder, filename) {
+            try {
+                // Warning: This hits GitHub API rate limits if used too heavily without auth
+                const path = `wiki/${folder}/${filename}`;
+                const res = await fetch(`https://api.github.com/repos/${STATE.repo}/commits?path=${path}&page=1&per_page=1`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        const date = new Date(data[0].commit.committer.date).toLocaleDateString();
+                        document.getElementById('last-updated').textContent = `Updated: ${date}`;
+                    }
+                }
+            } catch (e) { /* Ignore errors silently */ }
+        }
+
+        // OPTIMIZATION: Preload Next/Prev pages
+        function preloadAdjacent(currentFolder, currentTitle) {
+            let flatList = [];
+            for (const [folder, files] of Object.entries(STATE.wikiData)) {
+                for (const [title, file] of Object.entries(files)) {
+                    flatList.push({ folder, title, file });
+                }
+            }
+            const idx = flatList.findIndex(item => item.folder === currentFolder && item.title === currentTitle);
+
+            [idx - 1, idx + 1].forEach(i => {
+                if (flatList[i]) {
+                    const item = flatList[i];
+                    const key = `${item.folder}/${item.file}`;
+                    if (!STATE.contentCache[key]) {
+                        fetch(`wiki/${item.folder}/${item.file}`).then(res => res.text()).then(txt => {
+                            STATE.contentCache[key] = txt;
+                        }).catch(() => { });
+                    }
+                }
+            });
+        }
+
+        function enhanceMarkdownContent() {
+            // 1. Headings IDs and Anchors
+            const headings = document.querySelectorAll('#markdown-viewer h2, #markdown-viewer h3');
+            headings.forEach(h => {
+                if (!h.id) h.id = h.textContent.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+                const anchor = document.createElement('a');
+                anchor.className = 'anchor-link';
+                anchor.innerHTML = '#';
+                anchor.title = 'Copy link';
+                anchor.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const url = `${window.location.origin}${window.location.pathname}?page=${new URLSearchParams(window.location.search).get('page')}#${h.id}`;
+                    navigator.clipboard.writeText(url);
+                    anchor.innerHTML = 'copied!';
+                    setTimeout(() => anchor.innerHTML = '#', 1500);
+                    history.pushState(null, null, `#${h.id}`);
+                };
+                h.appendChild(anchor);
+            });
+
+            // 2. Syntax Highlighting
+            document.querySelectorAll('pre code').forEach((el) => {
+                hljs.highlightElement(el);
+            });
+
+            // 3. Copy Buttons for Code
+            document.querySelectorAll('pre').forEach(pre => {
+                if (pre.querySelector('.copy-btn')) return;
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.textContent = 'Copy';
+                btn.onclick = () => {
+                    navigator.clipboard.writeText(pre.querySelector('code').innerText);
+                    btn.textContent = 'Copied!';
+                    btn.style.borderColor = 'var(--accent-green)';
+                    btn.style.color = 'var(--accent-green)';
+                    setTimeout(() => { btn.textContent = 'Copy'; btn.style = ''; }, 2000);
+                }
+                pre.appendChild(btn);
+            });
+
+            // 4. Lightbox for Images
+            document.querySelectorAll('#markdown-viewer img').forEach(img => {
+                img.onclick = () => openLightbox(img.src);
+            });
+
+            // 5. External Links
+            document.querySelectorAll('#markdown-viewer a').forEach(a => {
+                if (a.hostname !== window.location.hostname && !a.className.includes('anchor-link')) {
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                }
+            });
+        }
+
+        function renderPagination(currentFolder, currentTitle) {
+            const navContainer = document.getElementById('page-nav');
+
+            let flatList = [];
+            for (const [folder, files] of Object.entries(STATE.wikiData)) {
+                for (const [title, file] of Object.entries(files)) {
+                    flatList.push({ folder, title, file });
+                }
+            }
+
+            const currentIndex = flatList.findIndex(item => item.folder === currentFolder && item.title === currentTitle);
+            if (currentIndex === -1) return;
+
+            // Prev
+            if (currentIndex > 0) {
+                const prev = flatList[currentIndex - 1];
+                const btn = document.createElement('button');
+                btn.className = "text-left p-4 rounded border border-hack-border hover:border-hack-green group transition-colors bg-hack-sidebar/50 hover:bg-hack-sidebar w-full";
+                btn.innerHTML = `<div class="text-[10px] text-gray-500 uppercase tracking-widest mb-1 group-hover:text-hack-green">Previous</div><div class="font-bold text-sm truncate text-hack-heading">« ${prev.title}</div>`;
+                btn.onclick = () => loadContent(prev.folder, prev.title, prev.file);
+                navContainer.appendChild(btn);
+            } else {
+                navContainer.appendChild(document.createElement('div'));
+            }
+
+            // Next
+            if (currentIndex < flatList.length - 1) {
+                const next = flatList[currentIndex + 1];
+                const btn = document.createElement('button');
+                btn.className = "text-right p-4 rounded border border-hack-border hover:border-hack-green group transition-colors bg-hack-sidebar/50 hover:bg-hack-sidebar w-full";
+                btn.innerHTML = `<div class="text-[10px] text-gray-500 uppercase tracking-widest mb-1 group-hover:text-hack-green">Next</div><div class="font-bold text-sm truncate text-hack-heading">${next.title} »</div>`;
+                btn.onclick = () => loadContent(next.folder, next.title, next.file);
+                navContainer.appendChild(btn);
+            }
+        }
+
+        function generateTOC() {
+            const toc = document.getElementById('toc-container');
+            const headings = document.querySelectorAll('#markdown-viewer h2, #markdown-viewer h3');
+            toc.innerHTML = '';
+
+            if (headings.length === 0) {
+                toc.innerHTML = '<li class="text-gray-600 italic">No sections</li>';
+                return;
+            }
+
+            headings.forEach(h => {
+                const li = document.createElement('li');
+                const link = document.createElement('a');
+                link.textContent = h.childNodes[0].textContent;
+                link.href = `#${h.id}`;
+                link.className = `toc-link block py-1 pl-2 border-l-2 border-transparent hover:text-hack-green transition-colors truncate ${h.tagName === 'H3' ? 'ml-3 opacity-80' : ''}`;
+
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    document.getElementById(h.id).scrollIntoView({ behavior: 'smooth' });
+                    history.pushState(null, null, `#${h.id}`);
+                };
+
+                li.appendChild(link);
+                toc.appendChild(li);
+            });
+        }
+
+        // --- 6. SIDEBAR & SEARCH ---
+        function renderSidebar(searchResults = null) {
+            const container = document.getElementById('nav-container');
+            const noResults = document.getElementById('search-results-msg');
+            container.innerHTML = '';
+
+            let hasContent = false;
+
+            Object.keys(STATE.wikiData).forEach(folder => {
+                if (searchResults && !searchResults[folder]) return;
+
+                const cleanName = folder.replace(/^\d+_/, '').replace(/_/g, ' ');
+                const group = document.createElement('div');
+                group.className = 'nav-group mb-1';
+
+                const btn = document.createElement('button');
+                btn.className = `section-header w-full flex items-center justify-between px-2 py-2 text-gray-500 hover:text-hack-heading transition-colors rounded hover:bg-hack-bg focus:outline-none focus:bg-hack-bg ${STATE.expandedSections.has(folder) ? 'active' : ''}`;
+                btn.innerHTML = `
+                    <span class="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest font-mono"><i data-lucide="folder" class="w-3 h-3"></i> ${cleanName}</span>
+                    <i data-lucide="chevron-right" class="section-arrow w-3 h-3 transition-transform"></i>
+                `;
+
+                btn.onclick = () => {
+                    if (STATE.expandedSections.has(folder)) STATE.expandedSections.delete(folder);
+                    else STATE.expandedSections.add(folder);
+                    renderSidebar(searchResults);
+                };
+
+                const list = document.createElement('div');
+                list.className = `nav-list pl-2 border-l border-hack-border/30 ml-1 ${STATE.expandedSections.has(folder) || searchResults ? 'expanded' : 'collapsed'}`;
+
+                Object.keys(STATE.wikiData[folder]).forEach(title => {
+                    if (searchResults && !searchResults[folder][title]) return;
+                    hasContent = true;
+
+                    const filename = STATE.wikiData[folder][title];
+                    const link = document.createElement('a');
+                    link.href = '#';
+                    link.className = 'nav-link group flex items-center gap-3 px-2 py-1.5 rounded-md text-sm font-medium text-gray-400 hover:text-hack-heading hover:bg-hack-bg transition-all outline-none focus:bg-hack-bg';
+                    link.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-hack-border group-hover:bg-hack-green flex-shrink-0 transition-colors"></span> ${title}`;
+                    link.onclick = (e) => {
+                        e.preventDefault();
+                        loadContent(folder, title, filename);
+                        highlightLink(link);
+                    };
+                    link.onkeydown = (e) => { if (e.key === 'Enter') link.click(); };
+
+                    list.appendChild(link);
+                });
+
+                group.appendChild(btn);
+                group.appendChild(list);
+                container.appendChild(group);
+            });
+
+            if (!hasContent && searchResults) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+            }
+
+            lucide.createIcons();
+        }
+
+        function highlightLink(el) {
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        // --- 7. SEARCH LOGIC (DEBOUNCED & FULL TEXT) ---
+        function debounce(func, wait) {
+            let timeout;
+            return function (...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        const searchInput = document.getElementById('search-input');
+        const searchClear = document.getElementById('search-clear');
+
+        const performSearch = debounce((e) => {
+            const q = e.target.value.toLowerCase();
+            if (!q) {
+                renderSidebar();
+                searchClear.classList.add('opacity-0', 'pointer-events-none');
+                return;
+            }
+            searchClear.classList.remove('opacity-0', 'pointer-events-none');
+
+            // FULL TEXT SEARCH
+            const results = {};
+            if (STATE.searchIndex.length > 0) {
+                STATE.searchIndex.forEach(item => {
+                    if (item.titleLower.includes(q) || item.content.includes(q)) {
+                        if (!results[item.folder]) results[item.folder] = {};
+                        results[item.folder][item.title] = item.filename;
+                    }
+                });
+                renderSidebar(results);
+            } else {
+                // Fallback if index not ready
+                for (const [folder, files] of Object.entries(STATE.wikiData)) {
+                    const matches = {};
+                    let foundInFolder = false;
+                    for (const [title, file] of Object.entries(files)) {
+                        if (title.toLowerCase().includes(q)) {
+                            matches[title] = file;
+                            foundInFolder = true;
+                        }
+                    }
+                    if (foundInFolder) results[folder] = matches;
+                }
+                renderSidebar(results);
+            }
+        }, 300);
+
+        searchInput.addEventListener('input', performSearch);
+
+        searchClear.onclick = () => {
+            searchInput.value = '';
+            renderSidebar();
+            searchClear.classList.add('opacity-0', 'pointer-events-none');
+            searchInput.focus();
+        };
+
+        // --- 8. VERSIONS PAGE ---
+        async function toggleVersionsPage(btn, pushHistory = true) {
+            const viewer = document.getElementById('markdown-viewer');
+            const breadcrumbs = document.getElementById('breadcrumbs');
+            const pageNav = document.getElementById('page-nav');
+
+            breadcrumbs.innerHTML = `<span class="hover:text-hack-heading cursor-pointer">Bjorn</span> <span>/</span> <span class="text-hack-green font-bold">Changelog</span>`;
+            pageNav.innerHTML = '';
+            document.getElementById('reading-time').innerHTML = '';
+            document.getElementById('last-updated').innerHTML = '';
+
+            viewer.innerHTML = `<h1>Changelog</h1><div id="versions-list" class="space-y-4 mt-6"><div class="animate-pulse text-hack-green">Fetching releases...</div></div>`;
+
+            if (pushHistory) window.history.pushState({ page: 'versions' }, "", "?page=changelog");
+
+            try {
+                const res = await fetch(`https://api.github.com/repos/${STATE.repo}/releases`);
+                const data = await res.json();
+                const list = document.getElementById('versions-list');
+                list.innerHTML = '';
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    list.innerHTML = '<p>No releases found.</p>';
+                    return;
+                }
+
+                data.slice(0, 10).forEach(r => {
+                    const div = document.createElement('div');
+                    div.className = 'border-b border-hack-border pb-4';
+                    div.innerHTML = `<h2 class="text-xl font-bold flex items-center gap-2">${r.tag_name} <span class="text-xs font-mono text-gray-500">${new Date(r.published_at).toLocaleDateString()}</span></h2><div class="markdown-body text-sm mt-2 pl-2 border-l-2 border-hack-border">${DOMPurify.sanitize(marked.parse(r.body || ''))}</div>`;
+                    list.appendChild(div);
+                });
+            } catch (e) {
+                document.getElementById('versions-list').innerHTML = `<p class="text-red-500">Failed to load releases.</p>`;
+            }
+        }
+
+        // --- 9. LIGHTBOX LOGIC ---
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+
+        function openLightbox(src) {
+            lightboxImg.src = src;
+            lightbox.classList.add('active');
+            lightboxImg.classList.remove('scale-95');
+            lightboxImg.classList.add('scale-100');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('active');
+            lightboxImg.classList.remove('scale-100');
+            lightboxImg.classList.add('scale-95');
+            document.body.style.overflow = '';
+        }
+
+        // --- 10. GLOBAL EVENTS & PROGRESS ---
+        const scrollBtn = document.getElementById('scroll-top-btn');
+        const scrollContainer = document.getElementById('scroll-container');
+        const progressBar = document.getElementById('reading-progress-bar');
+
+        scrollContainer.addEventListener('scroll', (e) => {
+            // Scroll Top Button
+            if (e.target.scrollTop > 300) scrollBtn.classList.remove('hidden');
+            else scrollBtn.classList.add('hidden');
+
+            // UX: Reading Progress
+            const scrollTop = e.target.scrollTop;
+            const scrollHeight = e.target.scrollHeight - e.target.clientHeight;
+            const scrollPercent = (scrollTop / scrollHeight) * 100;
+            progressBar.style.width = scrollPercent + '%';
+        });
+
+        scrollBtn.onclick = () => document.getElementById('scroll-container').scrollTo({ top: 0, behavior: 'smooth' });
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+            }
+            if (e.key === 'Escape') {
+                if (document.activeElement === searchInput) {
+                    searchInput.blur();
+                    if (searchInput.value) { searchInput.value = ''; renderSidebar(); }
+                } else if (lightbox.classList.contains('active')) {
+                    closeLightbox();
+                } else {
+                    closeMenu();
+                }
+            }
+        });
+
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        function openMenu() { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); setTimeout(() => overlay.classList.remove('opacity-0'), 10); }
+        function closeMenu() { sidebar.classList.add('-translate-x-full'); overlay.classList.add('opacity-0'); setTimeout(() => overlay.classList.add('hidden'), 300); }
+        document.getElementById('menu-btn').onclick = openMenu;
+        document.getElementById('close-sidebar-btn').onclick = closeMenu;
+        overlay.onclick = closeMenu;
+
+        window.onload = () => {
+            fetchLatestVersion();
+            initWiki();
+        };
+    </script>
+</body>
+
+</html>
