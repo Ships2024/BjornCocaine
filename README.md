@@ -42,6 +42,8 @@ The e-Paper HAT display and web interface make it easy to monitor and interact w
 - **File Stealing**: Extracts data from vulnerable services.
 - **User Interface**: Real-time display on the e-Paper HAT and web interface for monitoring and interaction.
 
+[![Architecture](https://img.shields.io/badge/ARCHITECTURE-Read_Docs-ff69b4?style=for-the-badge&logo=github)](./ARCHITECTURE.md)
+
 ![Bjorn Display](https://github.com/infinition/Bjorn/assets/37984399/bcad830d-77d6-4f3e-833d-473eadd33921)
 
 ## 🚀 Getting Started
