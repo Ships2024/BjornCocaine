@@ -2,12 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bjorn Cyberviking - Bjorn</title>
     <link rel="icon" href="web/images/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="web/css/styles.css">
+    <link rel="stylesheet" href="web/css/global.css">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#333">
+    <script src="web/js/global.js"></script>
+    <style>
+        
+.image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 70px); /* Adjust height to fit with mobile     */
+}
+
+.image-container img {
+    max-height: 100%;
+    max-width: 100%;
+    height: -webkit-fill-available;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+}
+
+.image-container img:active {
+    transform: scale(1.05);
+}
+
+.topbar.hidden {
+    display: none;
+}
+
+.image-container.fullscreen img {
+    height: 100vh;
+    width: auto;
+}
+
+@media (max-width: 768px) {
+
+
+    .image-container {
+        height: calc(100vh - 60px);
+    }
+}
+
+    </style>
+    <script src="web/js/global.js"></script>
+
     <script defer>
         var delay = 5000;  // Default value in case the fetch fails
         var intervalId;
@@ -61,14 +106,31 @@
         }
 
         function toggleMenu() {
-            var toolbar = document.querySelector('.toolbar');
+            var topbar = document.querySelector('.topbar');
+            var bottombar = document.querySelector('.bottombar');
+            var console = document.querySelector('.console');
             var imageContainer = document.querySelector('.image-container');
-            if (toolbar.style.display === 'flex') {
-                toolbar.style.display = 'none';
+            if (topbar.style.display === 'flex') {
+                topbar.style.display = 'none';
                 imageContainer.style.width = '100%'; // Adjust width when toolbar is hidden
             } else {
-                toolbar.style.display = 'flex';
+                topbar.style.display = 'flex';
                 imageContainer.style.width = 'calc(100%)'; // Adjust width when toolbar is visible
+            }
+            if (bottombar) {
+                if (bottombar.style.display === 'grid') {
+                    bottombar.style.display = 'none';
+                } else {
+                    bottombar.style.display = 'grid';
+                }
+            }
+            if (console) {
+                if (console.style.display === 'grid') {
+                    console.style.display = 'none';
+                } else {
+                    console.style.display = 'grid';
+                imageContainer.style.width = 'calc(100%)'; // Adjust width when toolbar is visible
+                }
             }
             adjustImageHeight(); // Adjust image height after toggling toolbar
         }
@@ -91,30 +153,12 @@
     </script>
 </head>
 <body>
-    <div class="toolbar" id="mainToolbar">
-        <button type="button" onclick="window.location.href='/index.html'" title="Playground">
-            <img src="/web/images/console_icon.png" alt="Bjorn" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/config.html'" title="Config">
-            <img src="/web/images/config_icon.png" alt="Icon_config" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/network.html'" title="Network">
-            <img src="/web/images/network_icon.png" alt="Icon_network" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/netkb.html'" title="NetKB">
-            <img src="/web/images/netkb_icon.png" alt="Icon_netkb" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/credentials.html'" title="Credentials">
-            <img src="/web/images/cred_icon.png" alt="Icon_cred" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/loot.html'" title="Loot">
-            <img src="/web/images/loot_icon.png" alt="Icon_loot" style="height: 50px;">
-        </button>
-    </div>
+<main>
     <div class="image-container">
         <img id="screenImage_Home" src="screen.png" onclick="toggleMenu()" alt="Bjorn">
     </div>
-</div>
+</main>
+
 
 </body>
 </html>

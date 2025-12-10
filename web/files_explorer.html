@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>Bjorn Cyberviking - Files Explorer</title>
+  <link rel="icon" href="web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="web/css/global.css" />
+  <link rel="stylesheet" href="web/css/all.min.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#333" />
+  <script src="web/js/global.js"></script>
+
+  <!-- Integrated CSS (theming only; no logic changes) -->
+  <style>
+    /* ========= bridge variables to global.css tokens ========= */
+    :root{
+      --_bg: var(--bg, #0b0c0f);
+      --_panel: var(--c-panel-2, rgba(16,22,22,.6));
+      --_border: var(--c-border, rgba(255,255,255,.08));
+      --_ink: var(--ink, #e6fff7);
+      --_muted: var(--muted, #8affc1cc);
+      --_acid: var(--acid, #00ff9a);
+      --_acid2: var(--acid-2, #18f0ff);
+      --_shadow: var(--shadow, 0 10px 26px rgba(0,0,0,.35));
+    }
+
+    body{ background:var(--_bg); color:var(--_ink); }
+    .main{ padding:0 !important; }
+
+    /* ===== Layout ===== */
+    .loot-container{
+      display:flex; flex-direction:column;
+      height:calc(100vh - 120px);
+      padding:12px;
+      gap:12px;
+    }
+
+    .file-explorer{
+      flex:1; display:flex; flex-direction:column; overflow:hidden; padding:10px;
+      color:var(--_ink);
+      background: color-mix(in oklab, var(--_panel) 92%, transparent);
+      border:1px solid var(--_border);
+      border-radius:14px;
+      backdrop-filter: blur(18px);
+      box-shadow: var(--_shadow);
+    }
+
+    /* ===== View containers ===== */
+    .files-grid{
+      overflow-y:auto;
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap:8px; padding:8px; border-radius:8px;
+    }
+    .files-list{ overflow-y:auto; padding:4px; }
+
+    /* ===== Upload section ===== */
+    .upload-container{
+      padding:10px; margin-bottom:10px;
+      display:flex; justify-content:center; align-items:center;
+    }
+    .drop-zone{
+      width:100%; max-width:800px;
+      padding:16px;
+      border:2px dashed var(--_border);
+      border-radius:12px; text-align:center; font-size:14px;
+      color: var(--_muted);
+      cursor:pointer; transition:.25s ease;
+      background: color-mix(in oklab, var(--_panel) 88%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    .drop-zone:hover{ background: color-mix(in oklab, var(--_panel) 96%, transparent); }
+    .drop-zone.dragover{
+      border-color: color-mix(in oklab, var(--_acid) 50%, var(--_border));
+      background: color-mix(in oklab, var(--_acid) 12%, var(--_panel));
+      color: var(--_ink);
+    }
+
+    /* ===== Items (grid & list) ===== */
+    .grid-item, .list-item{
+      border-radius:10px; padding:8px; cursor:pointer; transition:.15s ease;
+      display:flex; align-items:center; position:relative;
+      border:1px solid transparent;
+      background: color-mix(in oklab, var(--_panel) 86%, transparent);
+    }
+    .grid-item{ flex-direction:column; text-align:center; }
+    .list-item{ flex-direction:row; gap:12px; }
+
+    .grid-item:hover, .list-item:hover{
+      transform: translateY(-2px);
+      border-color: color-mix(in oklab, var(--_acid2) 35%, var(--_border));
+      box-shadow: 0 4px 14px rgba(0,0,0,.25);
+      background: color-mix(in oklab, var(--_panel) 96%, transparent);
+    }
+
+    .grid-item img, .list-item img{ width:28px; height:28px; margin-bottom:4px; }
+    .list-item img{ margin-bottom:0; }
+
+    .item-name{
+      color:var(--_ink); font-size:14px; line-height:1.3;
+      word-break: break-word; pointer-events:none;
+    }
+    .folder .item-name{ color:var(--_ink); font-weight:700; }
+
+    .item-meta{
+      font-size:11px; color:var(--_muted); margin-top:4px; pointer-events:none;
+    }
+
+    /* selected state */
+    .multi-select-mode{ background: color-mix(in oklab, var(--_acid) 6%, transparent); }
+    .item-selected{
+      background: color-mix(in oklab, var(--_acid) 18%, var(--_panel)) !important;
+      border:2px solid color-mix(in oklab, var(--_acid) 55%, var(--_border)) !important;
+    }
+
+    /* ===== Context menu ===== */
+    .context-menu{
+      position:absolute; z-index:1000;
+      background: color-mix(in oklab, var(--_panel) 98%, transparent);
+      border:1px solid var(--_border);
+      border-radius:10px; padding:6px 8px; min-width:160px;
+      color:var(--_ink); box-shadow: var(--_shadow);
+    }
+    .context-menu > div{
+      padding:8px 10px; border-radius:8px; cursor:pointer;
+    }
+    .context-menu > div:hover{
+      background: color-mix(in oklab, var(--_acid2) 12%, transparent);
+    }
+
+    /* ===== Search ===== */
+    .search-container{
+      position:relative; margin-bottom:10px; display:flex; align-items:center;
+    }
+    .search-input{
+      width:100%; padding:10px 40px 10px 12px; font-size:14px;
+      border-radius:10px; border:1px solid var(--_border);
+      background: color-mix(in oklab, var(--_panel) 90%, transparent);
+      color:var(--_ink); box-sizing:border-box; transition:.2s;
+    }
+    .search-input:focus{
+      outline:none;
+      border-color: color-mix(in oklab, var(--_acid2) 35%, var(--_border));
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--_acid2) 18%, transparent);
+      background: color-mix(in oklab, var(--_panel) 96%, transparent);
+    }
+    .search-input::placeholder{ color: color-mix(in oklab, var(--_muted) 70%, transparent); }
+    .clear-button{
+      position:absolute; right:12px; background:none; border:none;
+      color: color-mix(in oklab, var(--_acid) 55%, var(--_ink));
+      font-size:16px; cursor:pointer; display:none;
+    }
+    .clear-button.show{ display:block; }
+
+    /* ===== Toolbar ===== */
+    .toolbar-buttons{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    .action-button{
+      background: color-mix(in oklab, var(--_panel) 90%, transparent);
+      border:1px solid var(--_border);
+      color: var(--_muted);
+      padding:8px 10px; border-radius:10px; cursor:pointer; font-size:14px; font-weight:700;
+      display:flex; align-items:center; gap:6px; transition:.2s; backdrop-filter: blur(10px);
+    }
+    .action-button:hover{
+      background: color-mix(in oklab, var(--_panel) 96%, transparent);
+      color: var(--_ink); transform: translateY(-2px);
+    }
+    .action-button.active{
+      background: linear-gradient(135deg, color-mix(in oklab, var(--_acid) 18%, transparent), color-mix(in oklab, var(--_acid2) 10%, transparent));
+      color: var(--_ink);
+      border-color: color-mix(in oklab, var(--_acid2) 28%, var(--_border));
+    }
+    .action-button.delete{
+      background: color-mix(in oklab, var(--_acid) 14%, var(--_panel));
+      color: var(--_ink); display:none; border-color: color-mix(in oklab, var(--_acid) 40%, var(--_border));
+    }
+    .action-button.delete.show{ display:flex; }
+
+    /* ===== Modal ===== */
+    .modal{
+      display:block; position:fixed; inset:0; z-index:1000;
+      background: rgba(0,0,0,.5);
+    }
+    .modal-content{
+      background: color-mix(in oklab, var(--_panel) 98%, transparent);
+      color: var(--_ink);
+      margin: 12vh auto; padding:20px; width: min(500px, 92vw);
+      border:1px solid var(--_border); border-radius:14px; box-shadow: var(--_shadow);
+    }
+    .modal-buttons{ margin-top:18px; text-align:right; display:flex; gap:8px; justify-content:flex-end; }
+    .modal-buttons button{
+      margin-left:0; padding:8px 14px; border-radius:10px; border:1px solid var(--_border);
+      cursor:pointer; background: color-mix(in oklab, var(--_panel) 92%, transparent); color:var(--_ink);
+    }
+    .modal-buttons button:hover{ background: color-mix(in oklab, var(--_panel) 98%, transparent); }
+    .modal-buttons .primary{
+      background: linear-gradient(135deg, color-mix(in oklab, var(--_acid) 18%, transparent), color-mix(in oklab, var(--_acid2) 10%, transparent));
+      border-color: color-mix(in oklab, var(--_acid2) 35%, var(--_border));
+      color: var(--_ink);
+    }
+
+    #folder-tree{
+      border:1px solid var(--_border);
+      border-radius:10px; padding:8px; margin:10px 0; max-height:320px; overflow-y:auto;
+      background: color-mix(in oklab, var(--_panel) 92%, transparent);
+    }
+    .folder-item{
+      padding:8px 10px; cursor:pointer; display:flex; align-items:center; gap:8px; border-radius:8px;
+    }
+    .folder-item:hover{ background: color-mix(in oklab, var(--_panel) 98%, transparent); }
+    .folder-item.selected{
+      background: color-mix(in oklab, var(--_acid2) 16%, transparent);
+      outline: 1px solid color-mix(in oklab, var(--_acid2) 35%, var(--_border));
+    }
+    .folder-item i{ color: var(--_muted); }
+
+    /* ===== Path navigator ===== */
+    .path-navigator{
+      padding:8px; margin-bottom:8px; border-radius:10px;
+      display:flex; align-items:center; gap:8px;
+      background: color-mix(in oklab, var(--_panel) 90%, transparent);
+      border:1px solid var(--_border);
+    }
+    .nav-buttons{ display:flex; gap:8px; }
+    .back-button{
+      background: color-mix(in oklab, var(--_panel) 92%, transparent);
+      border:1px solid var(--_border);
+      color: var(--_muted);
+      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700;
+      display:flex; align-items:center; gap:6px; min-width:40px; min-height:40px; justify-content:center;
+      transition:.2s;
+    }
+    .back-button:hover{ background: color-mix(in oklab, var(--_panel) 98%, transparent); color: var(--_ink); }
+
+    .current-path{ display:flex; align-items:center; gap:6px; overflow:hidden; flex-wrap:wrap; }
+    .path-segment{
+      background: linear-gradient(135deg, color-mix(in oklab, var(--_acid) 16%, transparent), color-mix(in oklab, var(--_acid2) 10%, transparent));
+      color: var(--_ink); padding:6px 10px; border-radius:10px; cursor:pointer; transition:.2s;
+      border:1px solid color-mix(in oklab, var(--_acid2) 28%, var(--_border));
+    }
+    .path-segment:hover{ filter: brightness(1.08); }
+
+    /* ===== Responsive ===== */
+    @media (max-width:420px){
+      .loot-container{ height:80vh; }
+      .file-explorer{ max-height:40vh; }
+      .files-grid{ max-height:40vh; }
+      .drop-zone{ padding:18px; font-size:15px; }
+      .toolbar-buttons{ padding:4px; gap:6px; }
+      .search-container, .path-navigator{ padding:4px; }
+      .grid-item{ min-height:74px; font-size:12px; }
+      .item-name{ font-size:13px; margin-top:2px; }
+      .item-meta{ font-size:10px; margin-top:2px; }
+      .grid-item img, .list-item img{ width:28px; height:28px; }
+    }
+    @media (max-width:768px){
+      .files-grid{ grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:8px; }
+      #file-list{ max-height:fit-content; overflow-y:auto; }
+      .toolbar-buttons{ flex-direction:row; flex-wrap:wrap; gap:8px; }
+      .files-list{ padding:8px; max-height:50vh; overflow-y:auto; }
+      .grid-item{ padding:8px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main" id="main">
+    <div class="loot-container">
+      <!-- File Explorer Section -->
+      <div class="file-explorer">
+        <div class="toolbar-buttons">
+          <button class="action-button" onclick="toggleView()">
+            <i class="fas fa-th-list"></i>
+          </button>
+          <button class="action-button" id="multiSelectBtn" onclick="toggleMultiSelect()">
+            <i class="fas fa-object-group"></i>Select
+          </button>
+          <button class="action-button" id="newFolderBtn" onclick="createNewFolder()">
+            <i class="fas fa-folder-plus"></i> New Folder
+          </button>
+          <button class="action-button" onclick="renameSelected()" id="renameBtn" style="display: none;">
+            <i class="fas fa-edit"></i> Rename
+          </button>
+          <button class="action-button" onclick="moveSelected()" id="moveBtn" disabled>
+            <i class="fas fa-arrows-alt"></i> Move
+          </button>
+          <button class="action-button delete" id="deleteBtn" onclick="deleteSelectedItems()" disabled>
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+
+        <div class="search-container">
+          <input type="text" class="search-input" id="search-input" placeholder="Search files..." oninput="filterFiles()" />
+          <button class="clear-button" id="clear-button" onclick="clearSearch()">✖</button>
+        </div>
+
+        <div class="path-navigator">
+          <div class="nav-buttons">
+            <button class="back-button" onclick="navigateUp()" title="Go to parent directory">
+              &larr; Back
+            </button>
+          </div>
+          <div class="current-path" id="currentPath"></div>
+        </div>
+
+        <div class="files-grid" id="file-list"></div>
+      </div>
+
+      <!-- Upload Container Fixed at Bottom -->
+      <div class="upload-container">
+        <input id="file-upload" type="file" multiple style="display: none;" onchange="handle_file_upload(event)" />
+        <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-upload').click()">
+          Drag files or folders here or click to upload
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Embedded JavaScript (UNCHANGED) -->
+  <script>
+    let currentPath = [];
+    let fontSize = 14;
+    let allFiles = [];
+    let isGridView = true; // Grid view by default
+
+    function formatBytes(bytes, decimals = 1) {
+      if (!bytes) return '0 Bytes';
+      const k = 1024; const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+    function toggleView() { isGridView = !isGridView; loadCurrentFolder(); }
+    function navigateUp() { if (currentPath.length > 0) { currentPath.pop(); loadCurrentFolder(); } }
+    function navigateToFolder(folderName) { currentPath.push(folderName); loadCurrentFolder(); }
+
+    function loadAllFiles() {
+      fetch('/list_files')
+        .then(r => r.json())
+        .then(data => { allFiles = data; loadCurrentFolder(); })
+        .catch(err => console.error('Error fetching files:', err));
+    }
+    function loadCurrentFolder() {
+      const currentContent = findFolderContents(allFiles, currentPath);
+      displayFiles(currentContent);
+      updateCurrentPathDisplay();
+      const v = document.getElementById('search-input').value.toLowerCase();
+      if (v) { filterFiles(); }
+    }
+    function findFolderContents(data, path) {
+      if (path.length === 0) return data;
+      let current = data;
+      for (let folder of path) {
+        const found = current.find(item => item.is_directory && item.name === folder);
+        if (!found || !found.children) return [];
+        current = found.children;
+      }
+      return current;
+    }
+    function displayFiles(currentContent) {
+      const container = document.getElementById('file-list');
+      container.innerHTML = '';
+      container.className = isGridView ? 'files-grid' : 'files-list';
+
+      const sorted = [...currentContent].sort((a,b)=>{
+        if (a.is_directory && !b.is_directory) return -1;
+        if (!a.is_directory && b.is_directory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      sorted.forEach(item => {
+        const el = document.createElement('div');
+        el.className = (isGridView ? 'grid-item ' : 'list-item ') + (item.is_directory ? 'folder' : 'file');
+
+        item.path = buildCompletePath(item.name);
+        el.dataset.path = item.path;
+        if (selectedItems.has(item.path)) el.classList.add('item-selected');
+
+        el.innerHTML = `
+          <img src="/web/images/${item.is_directory ? 'mainfolder' : 'file'}.png" alt="${item.is_directory ? 'Folder' : 'File'}">
+          <div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-meta">${item.is_directory ? 'Folder' : formatBytes(item.size || 0)}</div>
+          </div>
+        `;
+
+        el.addEventListener('click', (e)=>{
+          e.preventDefault();
+          if (isMultiSelectMode) {
+            toggleItemSelection(el, item);
+          } else {
+            if (item.is_directory) navigateToFolder(item.name);
+            else window.location.href = `/download_file?path=${encodeURIComponent(item.path)}`;
+          }
+        });
+
+        el.addEventListener('contextmenu', (e)=>{ e.preventDefault(); showContextMenu(e, item); });
+        container.appendChild(el);
+      });
+
+      updateSelectionCount();
+      updateButtonStates();
+    }
+    function navigateToRoot(){ currentPath = []; loadCurrentFolder(); }
+
+    function showMultiContextMenu(event){
+      const existing = document.querySelector('.context-menu'); if (existing) existing.remove();
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.style.top = `${event.clientY}px`; menu.style.left = `${event.clientX}px`;
+      const del = document.createElement('div');
+      del.textContent = `Delete (${selectedItems.size} items)`;
+      del.onclick = ()=>{ deleteMultipleItems(Array.from(selectedItems)); menu.remove(); };
+      menu.appendChild(del); document.body.appendChild(menu);
+      document.addEventListener('click', ()=>{ if (menu.parentElement) menu.remove(); }, { once:true });
+    }
+
+    async function deleteSelectedItems(){
+      if (selectedItems.size === 0) return;
+      if (confirm(`Are you sure you want to delete ${selectedItems.size} items?`)){
+        const items = Array.from(selectedItems.keys());
+        for (const path of items) {
+          try{
+            const r = await fetch('/delete_file', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ file_path: path })
+            });
+            if (!r.ok) console.error(`Failed to delete ${path}`);
+          } catch(err){ console.error(`Error deleting ${path}:`, err); }
+        }
+        await loadAllFiles(); clearSelection(); toggleMultiSelect();
+      }
+    }
+
+    function updateCurrentPathDisplay(){
+      const wrap = document.getElementById('currentPath'); wrap.innerHTML='';
+      const root = document.createElement('span'); root.className='path-segment'; root.textContent='/'; root.onclick = ()=>navigateToRoot(); wrap.appendChild(root);
+      currentPath.forEach((folder, idx)=>{
+        const seg = document.createElement('span'); seg.className='path-segment'; seg.textContent=folder;
+        seg.onclick = ()=>{ currentPath = currentPath.slice(0, idx+1); loadCurrentFolder(); };
+        wrap.appendChild(seg);
+      });
+    }
+
+    function buildCompletePath(fileName){
+      const basePath = '/home/bjorn/';
+      return basePath + currentPath.join('/') + '/' + fileName;
+    }
+
+    function deleteFileOrFolder(item){
+      if (!item || !item.path){ console.error('Invalid item or missing path:', item); alert('Error: Invalid file information'); return; }
+      if (confirm(`Are you sure you want to delete "${item.name}"?`)){
+        fetch('/delete_file', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ file_path: item.path })
+        })
+        .then(r=>{ if (!r.ok) return r.json().then(d=>{ throw new Error(d.message || 'Failed to delete the item.');}); return r.json(); })
+        .then(d=>{ if (d.status==='success') loadAllFiles(); else throw new Error(d.message || 'Unknown error occurred'); })
+        .catch(err=>{ console.error('Error in delete operation:', err); alert(`An error occurred: ${err.message}`); });
+      }
+    }
+
+    function showContextMenu(event, item){
+      event.preventDefault();
+      const existing = document.querySelector('.context-menu'); if (existing) existing.remove();
+
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.style.top = `${event.clientY}px`; menu.style.left = `${event.clientX}px`;
+
+      const rename = document.createElement('div'); rename.textContent='Rename';
+      rename.onclick = ()=>{ renameItem(item); menu.remove(); };
+      const dup = document.createElement('div'); dup.textContent='Duplicate';
+      dup.onclick = ()=>{ duplicateItem(item); menu.remove(); };
+      const move = document.createElement('div'); move.textContent='Move to...';
+      move.onclick = ()=>{ showMoveToDialog(item); menu.remove(); };
+      const del = document.createElement('div'); del.textContent='Delete';
+      del.onclick = ()=>{ deleteFileOrFolder({ name:item.name, path:buildCompletePath(item.name), is_directory:item.is_directory }); menu.remove(); };
+
+      [rename, dup, move, del].forEach(x=>menu.appendChild(x));
+      document.body.appendChild(menu);
+      document.addEventListener('click', ()=>{ if (menu.parentElement) menu.remove(); }, { once:true });
+    }
+
+    function filterFiles(){
+      const v = document.getElementById('search-input').value.toLowerCase();
+      const clear = document.getElementById('clear-button');
+      if (v.length > 0){
+        clear.classList.add('show');
+        displayFiles( filterAllFiles(allFiles, v) );
+      } else {
+        clear.classList.remove('show');
+        loadCurrentFolder();
+      }
+    }
+    function filterAllFiles(files, v){
+      let res = [];
+      files.forEach(it=>{
+        if (it.name.toLowerCase().includes(v)) res.push(it);
+        if (it.is_directory && it.children) res = res.concat(filterAllFiles(it.children, v));
+      });
+      return res;
+    }
+    function clearSearch(){ const i = document.getElementById('search-input'); i.value=''; filterFiles(); }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const fi = document.getElementById('file-upload');
+      fi.removeAttribute('webkitdirectory'); fi.removeAttribute('directory'); fi.removeAttribute('mozdirectory'); fi.setAttribute('multiple','');
+      loadAllFiles();
+      if (/Mobi|Android/i.test(navigator.userAgent)){ fontSize = 12; adjustFontSize(0); }
+      const filesGrid = document.querySelector('.files-grid'); if (filesGrid){ filesGrid.addEventListener('contextmenu', showEmptySpaceContextMenu); }
+    });
+
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', ()=>{ dropZone.classList.remove('dragover'); });
+    dropZone.addEventListener('drop', (e)=>{
+      e.preventDefault(); dropZone.classList.remove('dragover');
+      const items = e.dataTransfer.items;
+      if (items){ handleDirectoryUpload(items); } else { handleFiles(e.dataTransfer.files); }
+    });
+
+    function handle_file_upload(e){ handleFiles(e.target.files); }
+    function handleFiles(files){
+      const formData = new FormData();
+      Array.from(files).forEach(file=>{
+        const rel = file.webkitRelativePath || file.name;
+        formData.append('files[]', file, rel);
+      });
+      formData.append('currentPath', JSON.stringify(currentPath));
+      fetch('/upload_files', { method:'POST', body: formData })
+        .then(r=>r.json())
+        .then(()=>{ loadAllFiles(); })
+        .catch(err=>{ alert('Error uploading files: ' + err.message); });
+    }
+
+    let isMultiSelectMode = false;
+    const selectedItems = new Map();
+    function toggleMultiSelect(){
+      isMultiSelectMode = !isMultiSelectMode;
+      const container = document.querySelector('.file-explorer');
+      const btn = document.querySelector('#multiSelectBtn');
+      if (isMultiSelectMode){ container.classList.add('multi-select-mode'); btn.classList.add('active'); }
+      else { container.classList.remove('multi-select-mode'); btn.classList.remove('active'); clearSelection(); }
+      updateButtonStates();
+    }
+    function updateSelectionCount(){
+      const del = document.getElementById('deleteBtn');
+      const n = selectedItems.size;
+      del.innerHTML = n>0 ? `<i class="fas fa-trash"></i> ${n}` : `<i class="fas fa-trash"></i>`;
+    }
+    function clearSelection(){
+      selectedItems.clear();
+      document.querySelectorAll('.grid-item, .list-item').forEach(i=>i.classList.remove('item-selected'));
+      updateButtonStates();
+    }
+    function toggleItemSelection(el, item){
+      if (!isMultiSelectMode) return;
+      const p = item.path;
+      if (selectedItems.has(p)){ selectedItems.delete(p); el.classList.remove('item-selected'); }
+      else { selectedItems.set(p, item); el.classList.add('item-selected'); }
+      updateButtonStates();
+    }
+
+    async function handleDirectoryUpload(items){
+      const files = []; const entries = Array.from(items).map(i=>i.webkitGetAsEntry());
+      async function traverseEntry(entry, path=''){
+        if (entry.isFile){
+          const file = await new Promise(res=>entry.file(res));
+          Object.defineProperty(file, 'webkitRelativePath', { value: path + entry.name });
+          files.push(file);
+        } else if (entry.isDirectory){
+          const reader = entry.createReader();
+          const kids = await new Promise(res=>{
+            const acc=[]; (function read(){ reader.readEntries((ents)=>{ if(ents.length){ acc.push(...ents); read(); } else { res(acc); } }); })();
+          });
+          const next = path + entry.name + '/';
+          for (const k of kids){ await traverseEntry(k, next); }
+        }
+      }
+      await Promise.all(entries.map(e=>traverseEntry(e)));
+      handleFiles(files);
+    }
+
+    function showEmptySpaceContextMenu(event){
+      if (event.target.classList.contains('files-grid')){
+        event.preventDefault();
+        const existing = document.querySelector('.context-menu'); if (existing) existing.remove();
+        const menu = document.createElement('div'); menu.className='context-menu';
+        menu.style.top = `${event.clientY}px`; menu.style.left = `${event.clientX}px`;
+        const nf = document.createElement('div'); nf.textContent='New Folder'; nf.onclick = ()=>{ createNewFolder(); menu.remove(); };
+        menu.appendChild(nf); document.body.appendChild(menu);
+        document.addEventListener('click', ()=>{ if (menu.parentElement) menu.remove(); }, { once:true });
+      }
+    }
+
+    async function renameItem(item){
+      const newName = prompt(`Rename ${item.is_directory ? 'folder' : 'file'} "${item.name}" to:`, item.name);
+      if (newName && newName !== item.name){
+        const oldPath = buildCompletePath(item.name);
+        const newPath = buildCompletePath(newName);
+        try{
+          const r = await fetch('/rename_file', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ old_path: oldPath, new_path: newPath })
+          });
+          if (!r.ok) throw new Error(await r.text());
+          loadAllFiles();
+        } catch(err){ alert(`Error renaming item: ${err.message}`); }
+      }
+    }
+
+    async function duplicateItem(item){
+      const base = item.name;
+      const ext = item.is_directory ? '' : (base.includes('.') ? '.' + base.split('.').pop() : '');
+      const nameNoExt = item.is_directory ? base : base.split('.')[0];
+      const newName = `${nameNoExt} (copy)${ext}`;
+      try{
+        const sourcePath = buildCompletePath(item.name);
+        const targetPath = buildCompletePath(newName);
+        const r = await fetch('/duplicate_file', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ source_path: sourcePath, target_path: targetPath })
+        });
+        if (!r.ok) throw new Error(await r.text());
+        loadAllFiles();
+      } catch(err){ alert(`Error duplicating item: ${err.message}`); }
+    }
+
+    async function createNewFolder(){
+      const folderName = prompt('Enter new folder name:', 'New Folder');
+      if (folderName){
+        try{
+          const folderPath = buildCompletePath(folderName);
+          const r = await fetch('/create_folder', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ folder_path: folderPath })
+          });
+          if (!r.ok) throw new Error(await r.text());
+          loadAllFiles();
+        } catch(err){ alert(`Error creating folder: ${err.message}`); }
+      }
+    }
+
+    async function showMoveToDialog(items){
+      const itemsArr = Array.isArray(items) ? items : [items];
+      const modal = document.createElement('div');
+      modal.className='modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <h2>Move ${itemsArr.length} ${itemsArr.length>1 ? 'items' : 'item'} to...</h2>
+          <div id="folder-tree"></div>
+          <div class="modal-buttons">
+            <button class="action-button" id="cancelButton"><i class="fas fa-times"></i> Cancel</button>
+            <button class="action-button primary" id="moveConfirmButton"><i class="fas fa-check"></i> Move</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      document.getElementById('cancelButton').addEventListener('click', closeModal);
+      document.getElementById('moveConfirmButton').addEventListener('click', ()=>{ processMove(itemsArr); });
+      modal.addEventListener('click', (e)=>{ if (e.target === modal) closeModal(); });
+      await loadFolderTree();
+    }
+
+    async function loadFolderTree(){
+      try{
+        const r = await fetch('/list_directories'); if (!r.ok) throw new Error('Failed to load directory structure');
+        const dirs = await r.json();
+        const tree = document.getElementById('folder-tree');
+        tree.innerHTML = buildFolderTreeHTML(dirs);
+        addFolderTreeListeners();
+      } catch(err){ alert('Error loading folder structure: ' + err.message); }
+    }
+
+    function buildFolderTreeHTML(directories, level=0){
+      let html=''; const pad = level * 20;
+      directories.forEach(dir=>{
+        if (dir.is_directory){
+          html += `<div class="folder-item" data-path="${dir.path}" style="padding-left:${pad}px"><i class="fas fa-folder"></i><span>${dir.name}</span></div>`;
+          if (dir.children && dir.children.length>0) html += buildFolderTreeHTML(dir.children, level+1);
+        }
+      });
+      return html;
+    }
+
+    let selectedTargetPath = null;
+    function addFolderTreeListeners(){
+      document.querySelectorAll('.folder-item').forEach(it=>{
+        it.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          document.querySelectorAll('.folder-item.selected').forEach(x=>x.classList.remove('selected'));
+          it.classList.add('selected'); selectedTargetPath = it.dataset.path;
+        });
+      });
+    }
+    function closeModal(){ const m = document.querySelector('.modal'); if (m) m.remove(); selectedTargetPath = null; }
+
+    async function processMove(items){
+      if (!selectedTargetPath){ alert('Please select a destination folder'); return; }
+      const errors = []; const arr = Array.isArray(items)?items:[items];
+      for (const item of arr){
+        try{
+          const r = await fetch('/move_file', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ source_path:item.path, target_path:`${selectedTargetPath}/${item.name}` })
+          });
+          if (!r.ok){ const e = await r.text(); errors.push(`Failed to move ${item.name}: ${e}`); }
+        } catch(err){ errors.push(`Error moving ${item.name}: ${err.message}`); }
+      }
+      if (errors.length>0) alert('Some errors occurred:\n' + errors.join('\n'));
+      closeModal(); loadAllFiles();
+    }
+
+    function renameSelected(){
+      const el = document.querySelector('.item-selected'); if (!el){ alert('Please select an item to rename'); return; }
+      const name = el.querySelector('.item-name').textContent; const path = el.dataset.path; const isDir = el.classList.contains('folder');
+      renameItem({ name, path, is_directory:isDir });
+    }
+
+    function moveSelected(){
+      const els = document.querySelectorAll('.item-selected');
+      if (els.length===0){ alert('Please select items to move'); return; }
+      const items = Array.from(els).map(el=>({ name: el.querySelector('.item-name').textContent, path: el.dataset.path, is_directory: el.classList.contains('folder') }));
+      showMoveToDialog(items);
+    }
+
+    function updateButtonStates(){
+      const n = selectedItems.size;
+      const renameBtn = document.getElementById('renameBtn');
+      const moveBtn = document.getElementById('moveBtn');
+      const deleteBtn = document.getElementById('deleteBtn');
+      const newFolderBtn = document.getElementById('newFolderBtn');
+
+      if (renameBtn){
+        if (isMultiSelectMode && n===1){ renameBtn.style.display='inline-block'; renameBtn.disabled=false; }
+        else { renameBtn.style.display='none'; renameBtn.disabled=true; }
+      }
+      if (moveBtn){
+        if (isMultiSelectMode && n>0){ moveBtn.style.display='inline-block'; moveBtn.disabled=false; }
+        else { moveBtn.style.display='none'; moveBtn.disabled=true; }
+      }
+      if (deleteBtn){
+        deleteBtn.style.display = isMultiSelectMode ? 'inline-block' : 'none';
+        deleteBtn.disabled = n===0;
+        deleteBtn.innerHTML = n>0 ? `<i class="fas fa-trash"></i> ${n}` : `<i class="fas fa-trash"></i>`;
+      }
+      if (newFolderBtn){ newFolderBtn.style.display = isMultiSelectMode ? 'none' : 'inline-block'; }
+    }
+  </script>
+</body>
+</html>

@@ -1,26 +1,11 @@
-#bjorn.py
-# This script defines the main execution flow for the Bjorn application. It initializes and starts
-# various components such as network scanning, display, and web server functionalities. The Bjorn 
-# class manages the primary operations, including initiating network scans and orchestrating tasks.
-# The script handles startup delays, checks for Wi-Fi connectivity, and coordinates the execution of
-# scanning and orchestrator tasks using semaphores to limit concurrent threads. It also sets up 
-# signal handlers to ensure a clean exit when the application is terminated.
-
-# Functions:
-# - handle_exit:  handles the termination of the main and display threads.
-# - handle_exit_webserver:  handles the termination of the web server thread.
-# - is_wifi_connected: Checks for Wi-Fi connectivity using the nmcli command.
-
-# The script starts by loading shared data configurations, then initializes and sta
-# bjorn.py test
-
-
+# bjorn.py
 import threading
 import signal
 import logging
 import time
 import sys
 import subprocess
+import re
 from init_shared import shared_data
 from display import Display, handle_exit_display
 from comment import Commentaireia
@@ -37,6 +22,9 @@ class Bjorn:
         self.commentaire_ia = Commentaireia()
         self.orchestrator_thread = None
         self.orchestrator = None
+        self.network_connected = False
+        self.wifi_connected = False
+        self.previous_network_connected = None  # Pour garder une trace de l'état précédent
 
     def run(self):
         """Main loop for Bjorn. Waits for Wi-Fi connection and starts Orchestrator."""
@@ -51,11 +39,9 @@ class Bjorn:
                 self.check_and_start_orchestrator()
             time.sleep(10)  # Main loop idle waiting
 
-
-
     def check_and_start_orchestrator(self):
         """Check Wi-Fi and start the orchestrator if connected."""
-        if self.is_wifi_connected():
+        if self.is_network_connected():
             self.wifi_connected = True
             if self.orchestrator_thread is None or not self.orchestrator_thread.is_alive():
                 self.start_orchestrator()
@@ -65,7 +51,8 @@ class Bjorn:
 
     def start_orchestrator(self):
         """Start the orchestrator thread."""
-        self.is_wifi_connected() # reCheck if Wi-Fi is connected before starting the orchestrator
+        self.is_network_connected() # reCheck if Wi-Fi is connected before starting the orchestrator
+        # time.sleep(10)  # Wait for network to stabilize
         if self.wifi_connected:  # Check if Wi-Fi is connected before starting the orchestrator
             if self.orchestrator_thread is None or not self.orchestrator_thread.is_alive():
                 logger.info("Starting Orchestrator thread...")
@@ -78,8 +65,8 @@ class Bjorn:
             else:
                 logger.info("Orchestrator thread is already running.")
         else:
-            logger.warning("Cannot start Orchestrator: Wi-Fi is not connected.")
-
+            pass
+            
     def stop_orchestrator(self):
         """Stop the orchestrator thread."""
         self.shared_data.manual_mode = True
@@ -89,17 +76,47 @@ class Bjorn:
             self.shared_data.orchestrator_should_exit = True
             self.orchestrator_thread.join()
             logger.info("Orchestrator thread stopped.")
-            self.shared_data.bjornorch_status = "IDLE"
-            self.shared_data.bjornstatustext2 = ""
+            self.shared_data.bjorn_orch_status = "IDLE"
+            self.shared_data.bjorn_status_text2 = ""
             self.shared_data.manual_mode = True
         else:
             logger.info("Orchestrator thread is not running.")
 
-    def is_wifi_connected(self):
-        """Checks for Wi-Fi connectivity using the nmcli command."""
-        result = subprocess.Popen(['nmcli', '-t', '-f', 'active', 'dev', 'wifi'], stdout=subprocess.PIPE, text=True).communicate()[0]
-        self.wifi_connected = 'yes' in result
-        return self.wifi_connected
+    
+    def is_network_connected(self):
+        """Checks for network connectivity on eth0 or wlan0 using ip command (replacing deprecated ifconfig)."""
+        logger = logging.getLogger("Bjorn.py")
+
+        def interface_has_ip(interface_name):
+            try:
+                # Use 'ip -4 addr show <interface>' to check for IPv4 address
+                result = subprocess.run(
+                    ['ip', '-4', 'addr', 'show', interface_name], 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE, 
+                    text=True
+                )
+                if result.returncode != 0:
+                    return False
+                # Check if output contains "inet" which indicates an IP address
+                return 'inet' in result.stdout
+            except Exception:
+                return False
+
+        eth_connected = interface_has_ip('eth0')
+        wifi_connected = interface_has_ip('wlan0')
+
+        self.network_connected = eth_connected or wifi_connected
+
+        if self.network_connected != self.previous_network_connected:
+            if self.network_connected:
+                logger.info(f"Network is connected (eth0={eth_connected}, wlan0={wifi_connected}).")
+            else:
+                logger.warning("No active network connections found.")
+            
+            self.previous_network_connected = self.network_connected
+
+        return self.network_connected
 
     
     @staticmethod
@@ -124,9 +141,7 @@ def handle_exit(sig, frame, display_thread, bjorn_thread, web_thread):
     if web_thread.is_alive():
         web_thread.join()
     logger.info("Main loop finished. Clean exit.")
-    sys.exit(0)  # Used sys.exit(0) instead of exit(0)
-
-
+    sys.exit(0)
 
 if __name__ == "__main__":
     logger.info("Starting threads")

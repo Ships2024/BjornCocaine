@@ -1,173 +1,895 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bjorn Cyberviking - Playground</title>
-    <link rel="icon" href="web/images/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="web/css/styles.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" sizes="192x192" href="web/images/icon-192x192.png">
-    <script src="web/scripts/index.js" defer></script>
-    <script src="https://cdn3.devexpress.com/jslib/20.2.5/js/dx.all.js"></script>
-    <link rel="stylesheet" href="https://cdn3.devexpress.com/jslib/20.2.5/css/dx.common.css">
-    <link rel="stylesheet" href="https://cdn3.devexpress.com/jslib/20.2.5/css/dx.light.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Bjorn Cyberviking – Dashboard</title>
+  <link rel="icon" href="/web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/web/css/global.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#333" />
+
+  <script>
+    // Compat shim pour global.js
+    window.shouldCloseLauncher = window.shouldCloseLauncher || function(){ return true; };
+    window.BJORN_DASH = window.BJORN_DASH || {};
+  </script>
+  <script src="/web/js/global.js" defer></script>
+
+  <style>
+    /* ===== Harmonisation avec global.css (avec fallbacks) ===== */
+    :root{
+      --gap:12px; --radius:14px; --pad:12px;
+      --fs-meta:12px; --fs-title:22px;
+
+      /* Fallbacks si non définis dans global.css */
+      --bg: var(--app-bg, #0e1012);
+      --panel: var(--c-panel, rgba(17,20,22,.75));
+      --panel-2: var(--c-panel-2, rgba(16,22,22,.6));
+      --ink: var(--text, #e6fff7);
+      --muted: var(--text-dim, #8affc1cc);
+      --acid: var(--accent, #00ff9a);
+      --acid-2: var(--accent-2, #18f0ff);
+      --ok: var(--c-ok, #2cff7e);
+      --warning: var(--c-warn, #ffd166);
+      --danger: var(--c-danger, #ff4d6d);
+      --c-border: var(--c-border-strong, rgba(255,255,255,.09));
+      --shadow: var(--shadow-xl, 0 10px 26px rgba(0,0,0,.35));
+      --glow-weak: color-mix(in oklab, var(--acid-2) 30%, transparent);
+      --glow-mid:  color-mix(in oklab, var(--acid-2) 70%, transparent);
+    }
+    @media (min-width:1024px){
+      :root{ --gap:14px; --radius:16px; --pad:14px; --fs-title:24px; }
+    }
+
+    html, body { background: var(--bg); color: var(--ink); margin: 0; }
+
+    /* ===== Cartes ===== */
+    .card{
+      border:1px solid var(--c-border);
+      background: color-mix(in oklab, var(--panel) 92%, transparent);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: var(--pad);
+      backdrop-filter: saturate(1.05) blur(3px);
+    }
+    .head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .head .title{ font-size: var(--fs-title); line-height:1.1; margin:0 }
+    .head .meta{ color:var(--muted); font-size: var(--fs-meta) }
+    .pill{ font-size:12px; color:var(--muted); }
+
+    .hero-grid{
+      display:grid; gap: var(--gap);
+      grid-template-columns: 1fr;
+    }
+    @media (min-width:1024px){
+      .hero-grid{ grid-template-columns: minmax(240px,320px) 1fr minmax(220px,300px); }
+    }
+
+    /* ===== Battery (naked) ===== */
+   /* ===== Battery “naked” (no rectangular card) ===== */ 
+   .battery-card.naked{ border:none; background:transparent; box-shadow:none; padding:0; display:grid; place-items:center; } .battery-wrap{ position:relative; width: clamp(180px, 46vw, 260px); aspect-ratio: 1 / 1; height: auto; display:grid; place-items:center; } .battery-ring{ position:absolute; left:50%; top:50%; width:100%; height:100%; transform: translate(-50%, -50%) rotate(-90deg); display:block; } .batt-bg{ fill:none; stroke: color-mix(in oklab, var(--ink) 10%, transparent); stroke-width:16; opacity:.35 } .batt-fg{ --ring1: var(--acid); --ring2: var(--acid-2); --ringGlow: var(--glow-mid); fill:none; stroke: url(#batt-grad); stroke-width:16; stroke-linecap:round; filter:url(#batt-glow); stroke-dasharray:100; stroke-dashoffset:100; transition: stroke-dashoffset .9s ease; } .batt-scan{ fill:none; stroke: var(--glow-mid); stroke-width:16; stroke-linecap:round; stroke-dasharray:8 280; opacity:.14; transform-origin:50% 50%; animation: battSweep 2.2s linear infinite; } @keyframes battSweep{ to{ transform: rotate(360deg); } } .batt-center{ position:absolute; inset:0; display:grid; grid-template-rows:auto auto auto; align-content:center; justify-items:center; gap:6px; padding:6px; text-align:center; } .bjorn-portrait{ position:relative; width:64px; height:64px; display:grid; place-items:center; overflow:hidden; } .bjorn-portrait img{ width:100%; height:100%; object-fit:contain; display:block; opacity:.95 } .bjorn-lvl{ position:absolute; right:-4px; bottom:-4px; font-size:11px; font-weight:700; padding:2px 6px; border-radius:999px; background:#0f1f18; color:#d9ffe7; border:1px solid color-mix(in oklab, var(--ok) 40%, var(--c-border)); box-shadow: 0 0 8px var(--glow-weak); } .batt-val{ font-size: clamp(18px, 5vw, 24px); font-weight:800; text-shadow: 0 0 14px var(--glow-weak); } .batt-state{ color:var(--muted); font-size:11px; display:flex; align-items:center; gap:6px; } .batt-indicator{ width:16px; height:16px; display:inline-grid; place-items:center; } .batt-indicator svg{ width: 18px; height: 18px; stroke:currentColor; fill:none; stroke-width:2; } .pulse{ animation: pulseGlow 1.4s ease-in-out infinite; } @keyframes pulseGlow{ 0%,100%{ transform: scale(1); opacity: .9; } 50%{ transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 6px var(--glow-mid)); } }
+
+    /* ===== Connectivity / Internet / KPIs ===== */
+
+    .net-card .globe{ position:relative; width:84px; height:84px; display:grid; place-items:center; background:color-mix(in oklab, var(--panel-2) 92%, transparent) }
+    .globe svg{ display:block; }
+    .globe-rim{ fill:none; stroke: color-mix(in oklab, var(--ink) 18%, transparent); stroke-width:3 }
+    .globe-lines{ fill:none; stroke: var(--acid-2); stroke-opacity:.85; stroke-width:2; stroke-linecap:round; stroke-dasharray:4 5; animation: globeSpin 12s linear infinite; transform-origin: 32px 32px; }
+    @keyframes globeSpin{ to{ transform: rotate(360deg); } }
+    .net-badge{
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+      border:1px solid var(--c-border); background: color-mix(in oklab, var(--panel-2) 90%, transparent); font-weight:700;
+    }
+    .net-on{
+      color: color-mix(in oklab, var(--ink) 94%, white);
+      background: var(--ok);
+      border-color: color-mix(in oklab, var(--ok) 60%, transparent);
+      text-shadow: 0 1px 0 rgba(0,0,0,.25);
+    }
+    .net-off{
+      background: color-mix(in oklab, var(--danger) 12%, var(--panel));
+      color: var(--ink);
+      border-color: color-mix(in oklab, var(--danger) 50%, transparent);
+      box-shadow: inset 0 0 10px color-mix(in oklab, var(--danger) 35%, transparent);
+    }
+
+    .conn-card .row{
+      display:grid; grid-template-columns: 22px 1fr auto; gap:10px; align-items:center;
+      padding:8px; border:1px solid var(--c-border); border-radius:12px;
+      background: color-mix(in oklab, var(--panel) 96%, transparent);
+    }
+    .conn-card .row + .row{ margin-top:8px; }
+    .conn-card .icon{ width:22px; height:22px; display:grid; place-items:center; }
+    .conn-card .icon svg{ width:20px; height:20px; stroke: var(--muted); fill:none; stroke-width:2; }
+
+    /* Ajout LED physique (radio/link/UDC) avant l’icône */
+    .conn-card #row-wifi,
+    .conn-card #row-bt,
+    .conn-card #row-eth,
+    .conn-card #row-usb{
+      grid-template-columns: 14px 22px 1fr auto; /* LED | ICON | details | state */
+    }
+    .conn-card #row-wifi::before,
+    .conn-card #row-bt::before,
+    .conn-card #row-eth::before,
+    .conn-card #row-usb::before{
+      content:"";
+      width:10px; height:10px; border-radius:50%;
+      justify-self:center;
+      background:#4a4f50;
+      box-shadow: 0 0 0 2px var(--c-border) inset, 0 0 6px rgba(0,0,0,.35);
+      opacity:.9;
+    }
+    .conn-card #row-wifi[data-physon]::before,
+    .conn-card #row-bt[data-physon]::before,
+    .conn-card #row-eth[data-physon]::before,
+    .conn-card #row-usb[data-physon]::before{
+      background: var(--ok);
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--ok) 40%, transparent) inset, 0 0 12px var(--ok);
+    }
+    .conn-card #row-wifi.err::before,
+    .conn-card #row-bt.err::before,
+    .conn-card #row-eth.err::before,
+    .conn-card #row-usb.err::before{
+      background: var(--danger);
+      box-shadow: 0 0 12px var(--danger);
+    }
+
+    .state-pill{
+      padding:3px 8px; border-radius:999px; font-size:12px;
+      border:1px solid var(--c-border);
+      background: color-mix(in oklab, var(--panel-2) 90%, transparent);
+      color:var(--muted);
+    }
+    .on .state-pill{
+      color:#d9ffe7;
+      background: color-mix(in oklab, var(--ok) 15%, #0f1f18);
+      border-color: color-mix(in oklab, var(--ok) 40%, var(--c-border));
+    }
+    .off .state-pill{ opacity:.8 }
+    .err .state-pill{
+      color:#ffdadd;
+      background: color-mix(in oklab, var(--danger) 15%, #2a1a1a);
+      border-color: color-mix(in oklab, var(--danger) 40%, var(--c-border));
+    }
+    .details{ color:var(--muted); font-size:12px }
+    .details .key{ color:var(--ink); font-weight:600 }
+    .details .dim{ opacity:.85 }
+
+    .kpi-cards{
+      display:grid; gap: var(--gap);
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      margin-top: var(--gap);
+    }
+    .kpi{
+      border:1px solid var(--c-border); border-radius: var(--radius);
+      background: color-mix(in oklab, var(--panel-2) 92%, transparent);
+      padding: var(--pad); display:grid; gap:6px;
+    }
+    .kpi .label{ color:var(--muted); font-size:12px }
+    .kpi .val{ font-size:20px; font-weight:800 }
+
+    .bar{
+      position:relative; width:100%; height:8px; border-radius:999px; overflow:hidden;
+      background: color-mix(in oklab, var(--ink) 8%, transparent); border:1px solid var(--c-border);
+    }
+    .bar > i{
+      position:absolute; left:0; top:0; bottom:0; width:0%;
+      background: linear-gradient(90deg, var(--acid), var(--acid-2));
+      transition: width .25s ease;
+    }
+    .bar > i.warm{ background: linear-gradient(90deg, color-mix(in oklab, var(--warning) 85%, #ffbe55), var(--warning)); }
+    .bar > i.hot{  background: linear-gradient(90deg, color-mix(in oklab, var(--danger) 85%, #ff6b6b), var(--danger)); }
+
+    .delta{
+      display:inline-flex; gap:6px; align-items:center; padding:2px 8px; border-radius:999px; font-size:12px;
+      border:1px solid var(--c-border); background: color-mix(in oklab, var(--panel) 92%, transparent); color:var(--muted);
+    }
+    .delta.good{
+      color:#d9ffe7; background: color-mix(in oklab, var(--ok) 15%, #0f1f18); border-color: color-mix(in oklab, var(--ok) 40%, var(--c-border));
+    }
+    .delta.bad{
+      color:#ffdadd; background: color-mix(in oklab, var(--danger) 15%, #2a1a1a); border-color: color-mix(in oklab, var(--danger) 40%, var(--c-border));
+    }
+
+    .submeta{ color:var(--muted); font-size:12px }
+  </style>
 </head>
 
 <body>
-    <div class="toolbar" id="mainToolbar">
-        <button type="button" onclick="window.location.href='/index.html'" title="Playground">
-            <img src="/web/images/console_icon.png" alt="Bjorn" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/config.html'" title="Config">
-            <img src="/web/images/config_icon.png" alt="Icon_config" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/network.html'" title="Network">
-            <img src="/web/images/network_icon.png" alt="Icon_network" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/netkb.html'" title="NetKB">
-            <img src="/web/images/netkb_icon.png" alt="Icon_netkb" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/credentials.html'" title="Credentials">
-            <img src="/web/images/cred_icon.png" alt="Icon_cred" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/loot.html'" title="Loot">
-            <img src="/web/images/loot_icon.png" alt="Icon_loot" style="height: 50px;">
-        </button>
+<main class="main" id="main">
+
+  <!-- HEADER (tap to refresh) -->
+  <section class="grid-stack" style="margin-bottom:12px">
+    <div class="card" id="liveops-card" style="cursor:pointer">
+      <div class="head">
+        <div><h2 class="title">Live Ops</h2></div>
+        <span class="pill">Last update: <span id="db-last-update">—</span></span>
+      </div>
     </div>
-    <div class="console-toolbar">
-        <button type="button" class="toolbar-button" onclick="adjustFontSize(-1)" title="-">
-            <img src="/web/images/less.png" alt="Icon_less" style="height: 50px;">
-        </button>
-        <div id="bjorn-dropdown-container" class="toolbar-button"></div>
-        <button id="toggle-toolbar" type="button" class="toolbar-button" onclick="toggleToolbar()" data-open="false">
-            <img id="toggle-icon" src="/web/images/hide.png" alt="Toggle Toolbar" style="height: 50px;">
-        </button>
-        <div id="dropdown-container" class="toolbar-button"></div>
-        <button type="button" class="toolbar-button" onclick="adjustFontSize(1)" title="+">
-            <img src="/web/images/plus.png" alt="Icon_plus" style="height: 50px;">
-        </button>
+  </section>
+
+  <!-- HERO -->
+  <section class="hero-grid">
+
+    <!-- BATTERY + BJORN -->
+    <article class="battery-card naked">
+      <div class="battery-wrap">
+        <svg class="battery-ring" viewBox="0 0 220 220" width="220" height="220" aria-hidden="true">
+          <defs>
+            <linearGradient id="batt-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%"  stop-color="var(--ring1, var(--acid))"/>
+              <stop offset="100%" stop-color="var(--ring2, var(--acid-2))"/>
+            </linearGradient>
+            <filter id="batt-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="var(--ringGlow, var(--glow-mid))"/>
+            </filter>
+          </defs>
+          <circle cx="110" cy="110" r="92" class="batt-bg"></circle>
+          <circle id="batt-fg" cx="110" cy="110" r="92" pathLength="100" class="batt-fg"></circle>
+          <circle id="batt-scan" cx="110" cy="110" r="92" class="batt-scan"></circle>
+        </svg>
+
+        <div class="batt-center" aria-live="polite">
+          <div class="bjorn-portrait" title="Bjorn">
+            <img id="bjorn-icon" src="/web/images/bjornwebicon.png" alt="Bjorn"
+                 onerror="this.style.opacity=0.7; this.style.filter='grayscale(100%)'">
+            <span class="bjorn-lvl" id="bjorn-level">LVL 1</span>
+          </div>
+
+          <div class="batt-val"><span id="sys-battery">—</span>%</div>
+
+          <div class="batt-state" id="sys-battery-state">
+            <span id="sys-battery-state-text">—</span>
+            <span class="batt-indicator">
+              <!-- USB icon -->
+              <svg id="ico-usb" viewBox="0 0 24 24" style="display:none">
+                <path d="M12 2v14"/><circle cx="12" cy="20" r="2"/>
+                <path d="M7 7h5l-2-2 2-2h-5zM12 10h5l-2-2 2-2h-5z"/>
+              </svg>
+              <!-- Battery icon -->
+              <svg id="ico-batt" viewBox="0 0 24 24" style="display:none">
+                <rect x="2" y="7" width="18" height="10" rx="2"/>
+                <rect x="20" y="10" width="2" height="4" rx="1"/>
+                <path d="M9 9l-2 4h4l-2 4"/>
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- CONNECTIVITY -->
+    <article class="card conn-card" id="conn-card">
+      <div class="head" style="margin-bottom:6px;">
+        <span class="title" style="font-size:18px">Connectivity</span>
+      </div>
+
+      <div class="row" id="row-wifi">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><path d="M2 8c5.5-4.5 14.5-4.5 20 0"/><path d="M5 11c3.5-3 10.5-3 14 0"/><path d="M8 14c1.8-1.6 6.2-1.6 8 0"/><circle cx="12" cy="18" r="1.5"/></svg>
+        </div>
+        <div class="details" id="wifi-details">—</div>
+        <div class="state"><span class="state-pill" id="wifi-state">OFF</span></div>
+      </div>
+      <div class="submeta" id="wifi-under">—</div>
+
+      <div class="row" id="row-eth">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="8" rx="2"/><path d="M8 11v5M12 11v5M16 11v5"/><rect x="7" y="16" width="10" height="5" rx="1"/></svg>
+        </div>
+        <div class="details" id="eth-details">—</div>
+        <div class="state"><span class="state-pill" id="eth-state">OFF</span></div>
+      </div>
+      <div class="submeta" id="eth-under">—</div>
+
+      <div class="row" id="row-usb">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2v14"/><circle cx="12" cy="20" r="2"/><path d="M7 7h5l-2-2 2-2h-5zM12 10h5l-2-2 2-2h-5z"/></svg>
+        </div>
+        <div class="details" id="usb-details"><span class="key">USB Gadget</span>: <span id="usb-gadget-state" class="dim">OFF</span> • <span class="key">Lease</span>: <span id="usb-lease" class="dim">—</span> • <span class="key">Mode</span>: <span id="usb-mode" class="dim">—</span></div>
+        <div class="state"><span class="state-pill" id="usb-state">OFF</span></div>
+      </div>
+
+      <div class="row" id="row-bt">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>
+        </div>
+        <div class="details" id="bt-details"><span class="key">BT Gadget</span>: <span id="bt-gadget-state" class="dim">OFF</span> • <span class="key">Lease</span>: <span id="bt-lease" class="dim">—</span> • <span class="key">Connected to</span>: <span id="bt-connected" class="dim">—</span></div>
+        <div class="state"><span class="state-pill" id="bt-state">OFF</span></div>
+      </div>
+    </article>
+
+    <!-- INTERNET -->
+    <article class="card net-card">
+      <div class="head" style="margin-bottom:6px;">
+        <span class="title" style="font-size:18px">Internet</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div class="globe">
+          <svg viewBox="0 0 64 64" width="80" height="80" aria-hidden="true">
+            <circle cx="32" cy="32" r="28" class="globe-rim"/>
+            <path d="M4 32h56M32 4c10 8 10 48 0 56M32 4c-10 8-10 48 0 56" class="globe-lines"/>
+          </svg>
+        </div>
+        <div><span class="net-badge" id="net-badge">NO</span></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- KPI GRID -->
+  <section class="kpi-cards">
+    <div class="kpi" id="kpi-hosts">
+      <div class="label">Alive hosts</div>
+      <div class="val"><span id="val-present">0</span> / <span id="val-known">0</span></div>
     </div>
 
-    <div class="console-toolbar">
-        <button id="toggle-console-button" class="toolbar-button" type="button" onclick="toggleConsole()">
-            <img id="toggle-console-image" src="/web/images/off.png" alt="Toggle Console" style="height: 30px;">
-        </button>
-        <button id="manual-mode-button" type="button" class="toolbar-button" onclick="toggleManualMode()" title="Manual Mode">
-            <img id="manual-mode-icon" src="/web/images/manual.png" alt="Manual Mode" style="height: 50px;">
-        </button>
+    <div class="kpi" id="kpi-ports-alive">
+      <div class="label">Open ports (alive hosts)</div>
+      <div class="val" id="val-open-ports-alive">0</div>
     </div>
-    <div id="manual-mode-panel" class="toolbar-button hidden" class="hidden">
-        <select id="ip-dropdown" onchange="updatePortsAndActions()"></select>
-        <select id="port-dropdown"></select>
-        <select id="action-dropdown"></select>
-        <button type="button" onclick="executeManualAttack()">Execute Attack</button>
-    </div>
-    <div id="log-console"></div>
-    <div id="popupContainer"></div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            adjustLogConsoleHeight();
-            loadManualModeOptions();
-        });
-    
-        function loadManualModeOptions() {
-            fetch('/netkb_data_json')
-                .then(response => response.json())
-                .then(data => {
-                    const ipDropdown = document.getElementById('ip-dropdown');
-                    const actionDropdown = document.getElementById('action-dropdown');
-    
-                    ipDropdown.innerHTML = data.ips.map(ip => `<option value="${ip}">${ip}</option>`).join('');
-                    actionDropdown.innerHTML = data.actions.map(action => `<option value="${action}">${action}</option>`).join('');
-                })
-                .catch(error => console.error('Error loading netkb data:', error));
-        }
-    
-        function updatePortsAndActions() {
-            const ipDropdown = document.getElementById('ip-dropdown');
-            const selectedIp = ipDropdown.value;
-    
-            fetch('/netkb_data_json')
-                .then(response => response.json())
-                .then(data => {
-                    const portDropdown = document.getElementById('port-dropdown');
-                    portDropdown.innerHTML = data.ports[selectedIp].map(port => `<option value="${port}">${port}</option>`).join('');
-                })
-                .catch(error => console.error('Error updating ports:', error));
-        }
-    
-        function executeManualAttack() {
-            const ip = document.getElementById('ip-dropdown').value;
-            const port = document.getElementById('port-dropdown').value;
-            const action = document.getElementById('action-dropdown').value;
-    
-            fetch('/execute_manual_attack', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ ip, port, action })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    console.log('Manual attack executed successfully:', data.message);
-                } else {
-                    console.error('Failed to execute manual attack:', data.message);
-                }
-                loadRecentLogs();  // Charger les logs récents après l'exécution de l'attaque
-            })
-            .catch(error => console.error('Error executing manual attack:', error));
-        }
-    
-        function loadRecentLogs() {
-            fetch('/recent_logs')
-                .then(response => response.text())
-                .then(data => {
-                    const logConsole = document.getElementById('log-console');
-                    logConsole.innerHTML = `<pre>${data}</pre>`;
-                })
-                .catch(error => console.error('Error loading recent logs:', error));
-        }
-    
-        function toggleManualMode() {
-            const panel = document.getElementById('manual-mode-panel');
-            const icon = document.getElementById('manual-mode-icon');
-            if (panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                panel.classList.add('visible');
-                icon.src = '/web/images/ai.png';
-                stop_orchestrator();
-            } else {
-                panel.classList.remove('visible');
-                panel.classList.add('hidden');
-                icon.src = '/web/images/manual.png';
-                start_orchestrator();
-            }
-            adjustLogConsoleHeight();
-        }
-    
-        function adjustLogConsoleHeight() {
-            const panel = document.getElementById('manual-mode-panel');
-            const logConsole = document.getElementById('log-console');
-            if (panel.classList.contains('visible')) {
-                logConsole.style.height = `calc(100vh - ${panel.offsetHeight}px - 100px)`;
-            } else {
-                logConsole.style.height = 'calc(100vh - 100px)';
-            }
-        }
-    
-        function stop_orchestrator() {
-            fetch('/stop_orchestrator', { method: 'POST' })
-                .catch(error => console.error('Failed to stop orchestrator:', error));
-        }
-    
-        function start_orchestrator() {
-            fetch('/start_orchestrator', { method: 'POST' })
-                .catch(error => console.error('Failed to start orchestrator:', error));
-        }
-    </script>
+    <div class="kpi" id="kpi-wardrive">
+      <div class="label">Known Wi-Fi</div>
+      <div class="val" id="val-wardrive-known">0</div>
+    </div>
+
+    <div class="kpi" id="kpi-cpu-ram">
+      <div class="submeta">CPU: <b id="cpu-pct">0%</b></div>
+      <div class="bar"><i id="cpu-bar"></i></div>
+      <div class="submeta">RAM: <b id="ram-used">0</b> / <b id="ram-total">0</b></div>
+      <div class="bar"><i id="ram-bar"></i></div>
+    </div>
+
+    <div class="kpi" id="kpi-storage">
+      <div class="label">Storage</div>
+      <div class="submeta">Used: <b id="sto-used">0</b> / <b id="sto-total">0</b></div>
+      <div class="bar"><i id="sto-bar"></i></div>
+    </div>
+
+    <div class="kpi" id="kpi-gps">
+      <div class="label">GPS</div>
+      <div class="val" id="gps-state">OFF</div>
+      <div class="submeta" id="gps-info">—</div>
+    </div>
+
+    <div class="kpi" id="kpi-zombies">
+      <div class="label">Zombies</div>
+      <div class="val" id="val-zombies">0</div>
+    </div>
+
+    <div class="kpi" id="kpi-creds">
+      <div class="label">Credentials</div>
+      <div class="val" id="val-creds">0</div>
+    </div>
+
+    <div class="kpi" id="kpi-files">
+      <div class="label">Data / Files collected</div>
+      <div class="val" id="val-files">0</div>
+    </div>
+
+    <div class="kpi" id="kpi-vulns">
+      <div class="label">Vulnerabilities</div>
+      <div class="val"><span id="val-vulns">0</span></div>
+      <div><span class="delta" id="vuln-delta">—</span></div>
+    </div>
+
+    <div class="kpi" id="kpi-scripts">
+      <div class="label">Attack scripts</div>
+      <div class="val" id="val-scripts">0</div>
+    </div>
+
+    <div class="kpi" id="kpi-system">
+      <div class="label">System</div>
+      <div class="submeta" id="sys-os">OS: —</div>
+      <div class="submeta" id="sys-arch">Arch: —</div>
+      <div class="submeta" id="sys-model">Model: —</div>
+      <div class="submeta" id="sys-epd">Waveshare E-Ink: —</div>
+    </div>
+
+    <div class="kpi" id="kpi-mode">
+      <div class="label">Mode</div>
+      <div class="val" id="sys-mode">—</div>
+    </div>
+
+    <div class="kpi" id="kpi-uptime">
+      <div class="label">Uptime</div>
+      <div class="val" id="sys-uptime">—</div>
+      <div class="submeta" id="bjorn-age">Bjorn age: —</div>
+    </div>
+
+    <div class="kpi" id="kpi-fds">
+      <div class="label">File Descriptors</div>
+      <div class="submeta"><b id="fds-used">0</b> / <b id="fds-max">0</b></div>
+      <div class="bar"><i id="fds-bar"></i></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  /* ---------- Helpers DOM ---------- */
+  const $ = (id) => document.getElementById(id);
+  const setText = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+  const setNumber = (id, v) => { const el = $(id); if (el) el.textContent = Number(v ?? 0).toLocaleString(); };
+
+  function setPctBar(id, pct){
+    const el=$(id); if(!el) return;
+    pct=Math.max(0,Math.min(100, pct||0));
+    el.style.width=pct+'%';
+    el.classList.remove('warm','hot');
+    if (pct>=85) el.classList.add('hot');
+    else if (pct>=60) el.classList.add('warm');
+  }
+  function fmtBytes(n){
+    if (n==null) return '0';
+    const u=['B','KB','MB','GB','TB']; let i=0; let x=Number(n);
+    while (x>=1024 && i<u.length-1){ x/=1024; i++; }
+    return (x>=10?Math.round(x):Math.round(x*10)/10)+' '+u[i];
+  }
+  function setBadge(id, on){
+    const el = $(id);
+    if(!el) return;
+    el.classList.remove('net-on','net-off');
+    el.classList.add(on ? 'net-on' : 'net-off');
+    el.textContent = on ? 'YES' : 'NO';
+  }
+  function setRowState(rowId, state){ const row=$(rowId); if(!row) return; row.classList.remove('on','off','err'); row.classList.add(state); }
+  function setRowPhys(rowId, on){
+    const row = $(rowId);
+    if(!row) return;
+    if (on) row.setAttribute('data-physon', '1');
+    else row.removeAttribute('data-physon');
+  }
+
+  /* ---------- Uptime ticker ---------- */
+  const Uptime = {
+    secs: 0, timer: null,
+    parse(str){
+      if(!str) return 0;
+      // Formats: "Xd HH:MM:SS" | "HH:MM:SS"
+      let days = 0, h=0, m=0, s=0;
+      const dMatch = str.match(/^(\d+)d\s+(.+)$/i);
+      if (dMatch){ days = parseInt(dMatch[1],10) || 0; str = dMatch[2]; }
+      const parts = (str||'').split(':').map(x=>parseInt(x,10)||0);
+      if (parts.length===3){ [h,m,s] = parts; } else if (parts.length===2){ [m,s]=parts; }
+      return days*86400 + h*3600 + m*60 + s;
+    },
+    fmt(total){
+      total = Math.max(0, Math.floor(total||0));
+      const d = Math.floor(total/86400);
+      let r = total % 86400;
+      const h = Math.floor(r/3600); r %= 3600;
+      const m = Math.floor(r/60); const s = r % 60;
+      const hh = h.toString().padStart(2,'0');
+      const mm = m.toString().padStart(2,'0');
+      const ss = s.toString().padStart(2,'0');
+      return d ? `${d}d ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+    },
+    startFrom(uptimeStr){
+      this.secs = this.parse(uptimeStr);
+      this.stop();
+      this.tick();
+      this.timer = setInterval(()=>this.tick(), 1000);
+    },
+    stop(){ if (this.timer) clearInterval(this.timer); this.timer = null; },
+    tick(){ setText('sys-uptime', this.fmt(this.secs)); this.secs += 1; }
+  };
+
+  /* ---------- Battery ring ---------- */
+  function updateRingColors(percent){
+    const fg = $('batt-fg');
+    if(!fg) return;
+    let ring1, ring2, glow;
+    if (percent <= 20){
+      ring1 = '#ff4d6d'; ring2 = '#ff6b6b'; glow = 'rgba(255,77,109,.9)';
+    } else if (percent <= 50){
+      ring1 = '#ffd166'; ring2 = '#ffbe55'; glow = 'rgba(255,209,102,.85)';
+    } else {
+      const cs = getComputedStyle(document.documentElement);
+      ring1 = cs.getPropertyValue('--acid').trim() || '#00ff9a';
+      ring2 = cs.getPropertyValue('--acid-2').trim() || '#18f0ff';
+      glow  = cs.getPropertyValue('--glow-mid').trim() || 'rgba(24,240,255,.7)';
+    }
+    fg.style.setProperty('--ring1', ring1);
+    fg.style.setProperty('--ring2', ring2);
+    fg.style.setProperty('--ringGlow', glow);
+  }
+
+  function setBattery({percent=0, charging=false, present=true}){
+    let mode;
+    if (!present){ mode = 'plugged'; percent = 100; }
+    else { mode = charging ? 'charging' : 'discharging'; }
+
+    const stateTxt = mode === 'plugged' ? 'Plugged' : (mode === 'charging' ? 'Charging' : 'Discharging');
+    setText('sys-battery-state-text', stateTxt);
+
+    percent = Math.max(0, Math.min(100, percent|0));
+    setText('sys-battery', percent);
+
+    const fg = $('batt-fg'); if (fg) fg.style.strokeDashoffset = (100 - percent).toFixed(2);
+    const scan = $('batt-scan'); if (scan) scan.style.opacity = (mode === 'charging') ? 0.28 : 0.14;
+
+    updateRingColors(percent);
+
+    const icoUsb  = $('ico-usb');
+    const icoBatt = $('ico-batt');
+    const stateEl = $('sys-battery-state');
+    if (icoUsb && icoBatt){
+      icoUsb.style.display  = (mode === 'plugged') ? '' : 'none';
+      icoBatt.style.display = (mode !== 'plugged') ? '' : 'none';
+      icoUsb.classList.remove('pulse'); icoBatt.classList.remove('pulse');
+      if (mode === 'plugged') icoUsb.classList.add('pulse'); else icoBatt.classList.add('pulse');
+      if (stateEl){ stateEl.style.color = (mode === 'plugged') ? 'var(--acid-2)' : 'var(--ink)'; }
+    }
+  }
+
+  /* ---------- Render helpers ---------- */
+  function wifiLine(ssid, ip){
+    if(!ssid && !ip) return '—';
+    const ss = ssid ? `<span class="key">SSID</span>: <span>${ssid}</span>` : '';
+    const ii = ip   ? `<span class="key">IP</span>: <span>${ip}</span>`     : '';
+    return [ss, ii].filter(Boolean).join(' &nbsp;•&nbsp; ');
+  }
+  const underLine = (gw, dns) => {
+    const g = gw ? `GW: ${gw}` : null;
+    const d = dns ? `DNS: ${dns}` : null;
+    const parts = [g,d].filter(Boolean);
+    return parts.length ? parts.join(' • ') : '—';
+  };
+
+  /* ---------- Full paint (60s) ---------- */
+  window.updateBjornDashboard = function(data){
+    if(!data) return;
+
+    // Battery + Bjorn
+    const batt = data?.battery || {};
+    setBattery({
+      percent: batt.level_pct ?? 0,
+      charging: /charging/i.test(batt.state || ''),
+      present: batt.present !== false
+    });
+    if (data?.bjorn_icon){ const img=$('bjorn-icon'); if(img) img.src=data.bjorn_icon; }
+    if (data?.bjorn_level != null) setText('bjorn-level', `LVL ${data.bjorn_level}`);
+
+    // Internet
+    setBadge('net-badge', !!data.internet_access);
+
+    // Hosts / Ports
+    setNumber('val-present', data.alive_hosts ?? 0);
+    setNumber('val-known', data.known_hosts_total ?? 0);
+    setNumber('val-open-ports-alive', data.open_ports_alive_total ?? 0);
+
+    // Known Wi-Fi
+    setNumber('val-wardrive-known', data.wardrive_known ?? 0);
+
+    // System bars + texts
+    const sys = data.system || {};
+    updateCpuRam(sys);
+
+    const stUsed = sys.storage_used_bytes ?? 0, stTot = sys.storage_total_bytes ?? 0;
+    setText('sto-used', fmtBytes(stUsed)); setText('sto-total', fmtBytes(stTot));
+    const stPct = stTot ? (stUsed/stTot)*100 : 0; setPctBar('sto-bar', stPct);
+
+    // GPS
+    const gps = data.gps || {};
+    const gpsOn = !!gps.connected;
+    setText('gps-state', gpsOn ? 'ON' : 'OFF');
+    $('gps-info').textContent = gpsOn
+      ? (gps.fix_quality ? `Fix: ${gps.fix_quality} • Sats: ${gps.sats ?? '—'} • ${gps.lat ?? '—'}, ${gps.lon ?? '—'} • ${gps.speed ?? '—'}` : `Fix: —`)
+      : '—';
+
+    // Zombies / Creds / Files
+    setNumber('val-zombies', data.zombies || 0);
+    setNumber('val-creds',   data.credentials || data.secrets || 0);
+    setNumber('val-files',   data.files_found || 0);
+
+    // Vulns + delta
+    const totalV = data.vulnerabilities || 0;
+    setNumber('val-vulns', totalV);
+    const dEl = $('vuln-delta');
+    if (dEl){
+      const deltaMissing = Number(data.vulns_missing_since_last_scan ?? 0);
+      dEl.classList.remove('good','bad');
+      if (deltaMissing > 0) dEl.classList.add('good');
+      if (deltaMissing < 0) dEl.classList.add('bad');
+      dEl.textContent = deltaMissing === 0 ? '= since last scan'
+                       : (deltaMissing > 0 ? `−${Math.abs(deltaMissing)} since last scan`
+                                           : `+${Math.abs(deltaMissing)} since last scan`);
+    }
+
+    // Scripts / Mode
+    setNumber('val-scripts', data.attack_scripts || 0);
+    setText('sys-mode', (data.mode || '—').toString().toUpperCase());
+
+    // Uptime ticker
+    Uptime.startFrom(data.uptime || '00:00:00');
+
+    // Age (statique)
+    const init_ts = data.first_init_ts || data.first_init_timestamp;
+    setText('bjorn-age', `Bjorn age: ${humanBjornAge(init_ts)}`);
+
+    // System info
+    const osName = sys.os_name || sys.os || '—';
+    const osVer  = sys.os_version ? ` ${sys.os_version}` : '';
+    const arch   = sys.arch || sys.bits || '—';
+    const model  = sys.model || sys.board || '—';
+    const epd    = sys.waveshare_epd_connected;
+    const epdType = sys.waveshare_epd_type;
+
+    setText('sys-os',   `OS: ${osName}${osVer}`);
+    setText('sys-arch', `Arch: ${arch}`);
+    setText('sys-model',`Model: ${model}`);
+    setText('sys-epd',  `Waveshare E-Ink: ${epd===true ? 'ON' : epd===false ? 'OFF' : '—'}${epdType ? ` (${epdType})` : ''}`);
+
+    // Connectivity
+    const c = data.connectivity || {};
+    const wifiOn = !!c.wifi;
+    setRowState('row-wifi', wifiOn ? 'on' : 'off');
+    setRowPhys('row-wifi', c.wifi_radio_on === true);
+    setText('wifi-state', wifiOn ? 'ON' : 'OFF');
+    $('wifi-details').innerHTML = wifiLine(c.wifi_ssid || c.ssid, c.wifi_ip || c.ip_wifi);
+    $('wifi-under').textContent = underLine(c.wifi_gw || c.gw_wifi, c.wifi_dns || c.dns_wifi);
+
+    const ethOn = !!c.ethernet;
+    setRowState('row-eth', ethOn ? 'on' : 'off');
+    setRowPhys('row-eth', c.eth_link_up === true);
+    setText('eth-state', ethOn ? 'ON' : 'OFF');
+    $('eth-details').innerHTML = (c.eth_ip || c.ip_eth) ? `<span class="key">IP</span>: <span>${c.eth_ip || c.ip_eth}</span> ` : '—';
+    $('eth-under').textContent = underLine(c.eth_gw || c.gw_eth, c.eth_dns || c.dns_eth);
+
+    const usbG = !!c.usb_gadget;
+    setRowState('row-usb', (usbG || c.usb_lease_ip) ? 'on' : 'off');
+    setRowPhys('row-usb', c.usb_phys_on === true);
+    setText('usb-state', usbG ? 'ON' : 'OFF');
+    setText('usb-gadget-state', usbG ? 'ON' : 'OFF');
+    setText('usb-lease', c.usb_lease_ip || c.ip_neigh_lease_usb || '—');
+    setText('usb-mode', c.usb_mode || 'Device');
+
+    const btG = !!c.bt_gadget;
+    setRowState('row-bt', (btG || c.bt_lease_ip || c.bt_connected_to) ? 'on' : 'off');
+    setRowPhys('row-bt', c.bt_radio_on === true);
+    setText('bt-state', btG ? 'ON' : 'OFF');
+    setText('bt-gadget-state', btG ? 'ON' : 'OFF');
+    setText('bt-lease', c.bt_lease_ip || c.ip_neigh_lease_bt || '—');
+    setText('bt-connected', c.bt_connected_to || c.bluetooth_connected_to || '—');
+
+    // Last update
+    const ts = data.timestamp ? new Date(data.timestamp*1000) : new Date();
+    $('db-last-update').textContent = ts.toLocaleString();
+  };
+
+  // Human-readable "age"
+  function humanBjornAge(init_ts){
+    if(!init_ts) return '—';
+    const now = Date.now() / 1000;
+    const delta = Math.max(0, now - Number(init_ts));
+    const days = Math.floor(delta / 86400);
+
+    if (days < 60) return `${days} day${days!==1?'s':''}`;
+
+    const months = Math.floor(days / 30.44);
+    if (months < 24) return `${months} month${months!==1?'s':''}`;
+
+    const years = days / 365.25;
+    const ystr = years < 10 ? years.toFixed(1) : Math.round(years).toString();
+    return `${ystr} year${years>=2?'s':''}`;
+  }
+
+  /* ---------- CPU/RAM light paint (5s) ---------- */
+  function updateCpuRam(sys){
+    // CPU
+    const cpu = Math.max(0, Math.min(100, sys.cpu_pct ?? 0));
+    setText('cpu-pct', `${Math.round(cpu)}%`);
+    setPctBar('cpu-bar', cpu);
+
+    // RAM
+    const ramUsed = sys.ram_used_bytes ?? 0, ramTot = sys.ram_total_bytes ?? 0;
+    setText('ram-used', fmtBytes(ramUsed)); setText('ram-total', fmtBytes(ramTot));
+    const ramPct = ramTot ? (ramUsed/ramTot)*100 : 0; setPctBar('ram-bar', ramPct);
+
+    // FDs
+    if (sys.open_fds !== undefined && sys.max_fds !== undefined) {
+      setText('fds-used', sys.open_fds);
+      setText('fds-max', sys.max_fds);
+      const fdPct = sys.max_fds ? (sys.open_fds / sys.max_fds) * 100 : 0;
+      setPctBar('fds-bar', fdPct);
+    }
+  }
+
+  function paintConnectivity(c){
+    if(!c) return;
+    setRowState('row-wifi', c.wifi ? 'on' : 'off');
+    setRowPhys('row-wifi', c.wifi_radio_on === true);
+    setText('wifi-state', c.wifi ? 'ON' : 'OFF');
+    $('wifi-details').innerHTML = wifiLine(c.wifi_ssid || c.ssid, c.wifi_ip || c.ip_wifi);
+    $('wifi-under').textContent = underLine(c.wifi_gw || c.gw_wifi, c.wifi_dns || c.dns_wifi);
+
+    setRowState('row-eth', c.ethernet ? 'on' : 'off');
+    setRowPhys('row-eth', c.eth_link_up === true);
+    setText('eth-state', c.ethernet ? 'ON' : 'OFF');
+    $('eth-details').innerHTML = (c.eth_ip || c.ip_eth) ? `<span class="key">IP</span>: <span>${c.eth_ip || c.ip_eth}</span>` : '—';
+    $('eth-under').textContent = underLine(c.eth_gw || c.gw_eth, c.eth_dns || c.dns_eth);
+
+    const usbG = !!c.usb_gadget;
+    setRowState('row-usb', (usbG || c.usb_lease_ip) ? 'on' : 'off');
+    setRowPhys('row-usb', c.usb_phys_on === true);
+    setText('usb-state', usbG ? 'ON' : 'OFF');
+    setText('usb-gadget-state', usbG ? 'ON' : 'OFF');
+    setText('usb-lease', c.usb_lease_ip || c.ip_neigh_lease_usb || '—');
+    setText('usb-mode', c.usb_mode || 'Device');
+
+    const btG = !!c.bt_gadget;
+    setRowState('row-bt', (btG || c.bt_lease_ip || c.bt_connected_to) ? 'on' : 'off');
+    setRowPhys('row-bt', c.bt_radio_on === true);
+    setText('bt-state', btG ? 'ON' : 'OFF');
+    setText('bt-gadget-state', btG ? 'ON' : 'OFF');
+    setText('bt-lease', c.bt_lease_ip || c.ip_neigh_lease_bt || '—');
+    setText('bt-connected', c.bt_connected_to || c.bluetooth_connected_to || '—');
+  }
+
+
+  /* ---------- Normalisation payload ---------- */
+  function normalizeStats(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    const s = payload.stats || {};
+    const sys = payload.system || {};
+    const battery = payload.battery || {};
+    const conn = payload.connectivity || {};
+    const gps = payload.gps || {};
+
+    const wardriveKnown =
+      s.wardrive_known ??
+      s.known_wifi ??
+      payload.wardrive_known ??
+      0;
+
+    const vulnsDelta =
+      payload.vulns_missing_since_last_scan ??
+      payload.vulns_delta ??
+      0;
+
+    return {
+      timestamp: payload.timestamp || Math.floor(Date.now()/1000),
+      first_init_ts: payload.first_init_ts || payload.first_init_timestamp,
+
+      alive_hosts: s.alive_hosts_count ?? payload.alive_hosts,
+      known_hosts_total: s.all_known_hosts_count ?? payload.known_hosts_total,
+      open_ports_alive_total: s.total_open_ports ?? payload.open_ports_alive_total,
+
+      wardrive_known: wardriveKnown,
+
+      vulnerabilities: s.vulnerabilities_count ?? payload.vulnerabilities,
+      zombies: s.zombie_count ?? payload.zombies,
+      credentials: s.credentials_count ?? payload.credentials ?? payload.secrets,
+      attack_scripts: s.actions_count ?? payload.attack_scripts,
+      files_found: payload.files_found ?? 0,
+
+      vulns_missing_since_last_scan: vulnsDelta,
+
+      internet_access: !!payload.internet_access,
+      mode: payload.mode || 'AUTO',
+      uptime: payload.uptime,
+      bjorn_icon: payload.bjorn_icon,
+      bjorn_level: payload.bjorn_level,
+
+      system: {
+        os_name: sys.os_name || sys.os,
+        os_version: sys.os_version,
+        arch: sys.arch || sys.bits,
+        model: sys.model || sys.board,
+        waveshare_epd_connected: sys.waveshare_epd_connected,
+        waveshare_epd_type: sys.waveshare_epd_type,
+        cpu_pct: sys.cpu_pct,
+        ram_used_bytes: sys.ram_used_bytes,
+        ram_total_bytes: sys.ram_total_bytes,
+        storage_used_bytes: sys.storage_used_bytes,
+        storage_total_bytes: sys.storage_total_bytes,
+        open_fds: sys.open_fds ?? payload.system?.open_fds,
+        max_fds: sys.max_fds ?? sys.fds_limit ?? payload.system?.fds_limit,
+        fds_global: sys.fds_global ?? payload.system?.fds_global,
+      },
+
+      battery: {
+        present: battery.present !== false,
+        level_pct: battery.level_pct,
+        state: battery.state,
+      },
+
+      gps: {
+        connected: !!gps.connected,
+        fix_quality: gps.fix_quality,
+        sats: gps.sats,
+        lat: gps.lat,
+        lon: gps.lon,
+        speed: gps.speed,
+      },
+
+connectivity: {
+  wifi: !!(conn.wifi || conn.wifi_ssid || conn.wifi_ip),
+  wifi_radio_on: conn.wifi_radio_on === true,        // NEW
+  wifi_ssid: conn.wifi_ssid || conn.ssid,
+  wifi_ip: conn.wifi_ip || conn.ip_wifi,
+  wifi_gw: conn.wifi_gw || conn.gw_wifi,
+  wifi_dns: conn.wifi_dns || conn.dns_wifi,
+
+  ethernet: !!(conn.ethernet || conn.eth_ip),
+  eth_link_up: conn.eth_link_up === true,            // NEW (link physique)
+  eth_ip: conn.eth_ip || conn.ip_eth,
+  eth_gw: conn.eth_gw || conn.gw_eth,
+  eth_dns: conn.eth_dns || conn.dns_eth,
+
+  usb_gadget: !!conn.usb_gadget,
+  usb_phys_on: conn.usb_phys_on === true,            // NEW
+  usb_mode: conn.usb_mode || 'Device',
+  usb_lease_ip: conn.usb_lease_ip || conn.ip_neigh_lease_usb,
+
+  bt_gadget: !!conn.bt_gadget,
+  bt_radio_on: conn.bt_radio_on === true,            // NEW
+  bt_lease_ip: conn.bt_lease_ip || conn.ip_neigh_lease_bt,
+  bt_connected_to: conn.bt_connected_to || conn.bluetooth_connected_to,
+},
+
+    };
+  }
+
+  /* ---------- Fetchers ---------- */
+  async function fetchBjornStats(){
+    try{
+      const resp = await fetch('/api/bjorn/stats', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      });
+      if (!resp.ok) return null;
+      const raw = await resp.json();
+      return normalizeStats(raw);
+    }catch{
+      return null;
+    }
+  }
+
+  // Light fetch (CPU/RAM only)
+async function fetchAndPaintLight(){
+  const data = await fetchBjornStats();
+  if (!data) return;
+  if (data.system) updateCpuRam(data.system);
+  if (data.connectivity) paintConnectivity(data.connectivity); // << NEW
+}
+
+
+  // Heavy fetch (full paint)
+  async function fetchAndPaintHeavy(){
+    const data = await fetchBjornStats();
+    if (!data){
+      // fail soft: ne change rien si indispo
+      return;
+    }
+    window.updateBjornDashboard(data);
+  }
+
+  // Tap to refresh (full)
+  (function () {
+    const card = document.getElementById('liveops-card');
+    if (!card || window.__bjornDashBound) return;
+    window.__bjornDashBound = true;
+    card.addEventListener('click', async () => {
+      await fetchAndPaintHeavy();
+    });
+  })();
+
+  // Initial paint + auto-refresh tiers
+  window.addEventListener('DOMContentLoaded', async () => {
+    await fetchAndPaintHeavy();              // 1) premier paint complet
+    // Timers
+    if (window.__bjornHeavyTimer) clearInterval(window.__bjornHeavyTimer);
+    if (window.__bjornLightTimer) clearInterval(window.__bjornLightTimer);
+    window.__bjornHeavyTimer = setInterval(fetchAndPaintHeavy, 60000); // 60s
+    window.__bjornLightTimer = setInterval(fetchAndPaintLight, 5000);  // 5s (CPU/RAM)
+  });
+</script>
 </body>
 </html>

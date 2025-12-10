@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bjorn Cyberviking - Vulnerability Dashboard</title>
+    <link rel="icon" href="web/images/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="web/css/global.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#333">
+    <script src="web/js/global.js"></script>
+    <style>
+        /* Dashboard-specific styles using global.css tokens */
+        .dashboard-container {
+            padding: var(--gap-4);
+            min-height: calc(100vh - var(--h-topbar) - var(--h-bottombar));
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Stats Header using global tokens */
+        .stats-header {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--gap-4);
+            margin-bottom: var(--gap-3);
+        }
+
+        .stat-card {
+            background: var(--grad-card);
+            border-radius: var(--radius);
+            padding: var(--gap-4);
+            text-align: center;
+            border: 1px solid var(--c-border);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--elev);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            animation: pulse 2s infinite;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 5px 0;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Control Bar */
+        .control-bar {
+            background: var(--grad-card);
+            border-radius: var(--radius);
+            padding: var(--gap-4);
+            margin-bottom: var(--gap-3);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--gap-3);
+            align-items: center;
+            border: 1px solid var(--c-border);
+            box-shadow: var(--elev);
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            height: var(--control-h);
+            padding: 0 40px 0 var(--control-pad-x);
+            background: var(--c-panel);
+            border: 1px solid var(--c-border-strong);
+            border-radius: var(--control-r);
+            color: var(--ink);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--glow-weak);
+        }
+
+        .clear-search {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 18px;
+            display: none;
+            transition: color 0.3s ease;
+        }
+
+        .clear-search:hover {
+            color: var(--acid-2);
+        }
+
+        .clear-search.show {
+            display: block;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: var(--gap-3);
+        }
+
+        .filter-btn {
+            /* Use global .btn styles */
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            border-color: var(--accent);
+        }
+
+        .severity-filter {
+            display: flex;
+            gap: var(--gap-2);
+        }
+
+        .severity-btn {
+            /* Use global .chip styles */
+        }
+
+        .severity-btn.critical.active { 
+            background: var(--danger);
+            border-color: var(--danger);
+            color: var(--white);
+        }
+        .severity-btn.high.active { 
+            background: var(--warning);
+            border-color: var(--warning);
+            color: var(--ink-invert);
+        }
+        .severity-btn.medium.active { 
+            background: var(--accent-2);
+            border-color: var(--accent-2);
+            color: var(--ink-invert);
+        }
+        .severity-btn.low.active { 
+            background: var(--ok);
+            border-color: var(--ok);
+            color: var(--ink-invert);
+        }
+
+        /* Vulnerability Cards using global tokens */
+        .vuln-grid {
+            display: grid;
+            gap: var(--gap-4);
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+        }
+
+        .vuln-card {
+            background: var(--grad-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--c-border);
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideIn 0.4s ease-out;
+            box-shadow: var(--elev);
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .vuln-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--accent);
+        }
+
+        .vuln-card.inactive {
+            opacity: 0.6;
+            border-color: var(--muted-off);
+        }
+
+        .vuln-header {
+            padding: var(--gap-4);
+            background: var(--grad-quickpanel);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            border-bottom: 1px solid var(--c-border);
+        }
+
+        .vuln-title {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-3);
+            flex: 1;
+        }
+
+        .vuln-id {
+            font-weight: bold;
+            font-size: 14px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .severity-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: pulse 2s infinite;
+        }
+
+        .severity-critical { background: var(--danger); color: var(--white); }
+        .severity-high { background: var(--warning); color: var(--ink-invert); }
+        .severity-medium { background: var(--accent-2); color: var(--ink-invert); }
+        .severity-low { background: var(--ok); color: var(--ink-invert); }
+
+        .vuln-meta {
+            display: flex;
+            gap: var(--gap-4);
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-2);
+        }
+
+        .expand-icon {
+            color: var(--muted);
+            transition: transform 0.3s ease;
+            font-size: 18px;
+        }
+
+        .vuln-card.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .vuln-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .vuln-card.expanded .vuln-content {
+            max-height: 1000px;
+        }
+
+        .vuln-details {
+            padding: var(--gap-4);
+            border-top: 1px solid var(--c-border);
+            background: var(--c-panel);
+        }
+
+        .detail-section {
+            margin-bottom: var(--gap-4);
+        }
+
+        .detail-title {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: var(--gap-2);
+            font-weight: 600;
+        }
+
+        .detail-content {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--ink);
+        }
+
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--gap-2);
+        }
+
+        .tag {
+            padding: 4px 8px;
+            background: var(--c-chip-bg);
+            border: 1px solid var(--c-border);
+            border-radius: var(--gap-2);
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: var(--gap-3);
+            padding: var(--gap-4);
+            border-top: 1px solid var(--c-border);
+            background: var(--c-panel-2);
+        }
+
+        .action-btn {
+            /* Use global .btn styles with specific variants */
+            flex: 1;
+            justify-content: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-remediate {
+            background: var(--ok);
+            border-color: var(--ok);
+            color: var(--ink-invert);
+        }
+
+        .btn-details {
+            background: var(--accent-2);
+            border-color: var(--accent-2);
+            color: var(--ink-invert);
+        }
+
+        .btn-export {
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            border-color: var(--accent);
+            color: var(--white);
+        }
+
+        /* Host View Styles */
+        .host-card {
+            background: var(--grad-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--c-border);
+            margin-bottom: var(--gap-4);
+            overflow: hidden;
+            animation: slideIn 0.4s ease-out;
+            box-shadow: var(--elev);
+        }
+
+        .host-header {
+            background: var(--grad-quickpanel);
+            padding: var(--gap-4);
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--c-border);
+        }
+
+        .host-header:hover {
+            background: var(--grad-modal);
+        }
+
+        .host-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-2);
+        }
+
+        .host-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--ink);
+            display: flex;
+            align-items: center;
+            gap: var(--gap-3);
+        }
+
+        .host-details {
+            display: flex;
+            gap: var(--gap-4);
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .host-stats {
+            display: flex;
+            gap: var(--gap-3);
+            align-items: center;
+        }
+
+        .host-stat-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: var(--gap-2);
+        }
+
+        .host-vulns {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .host-card.expanded .host-vulns {
+            max-height: 2000px;
+        }
+
+        .host-vuln-list {
+            padding: var(--gap-4);
+            background: var(--c-panel);
+        }
+
+        .host-vuln-item {
+            background: var(--c-panel-2);
+            border: 1px solid var(--c-border);
+            border-radius: var(--control-r);
+            padding: var(--gap-3);
+            margin-bottom: var(--gap-3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .host-vuln-item:hover {
+            background: var(--grad-card);
+            border-color: var(--accent);
+            transform: translateX(5px);
+        }
+
+        .host-summary {
+            background: var(--grad-quickpanel);
+            padding: var(--gap-3);
+            border-radius: var(--control-r);
+            margin-bottom: var(--gap-3);
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .host-summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-2);
+        }
+
+        .host-summary-value {
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .host-summary-label {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Badges */
+        .badge-kev {
+            background: var(--danger);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: var(--white);
+            font-weight: bold;
+        }
+
+        .badge-exploit {
+            background: linear-gradient(135deg, #9c27b0, #e1bee7);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: var(--white);
+            font-weight: bold;
+        }
+
+        .badge-epss-high {
+            background: linear-gradient(135deg, var(--danger), var(--warning));
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: var(--white);
+            font-weight: bold;
+        }
+
+        .badge-epss-medium {
+            background: linear-gradient(135deg, var(--warning), var(--accent-2));
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            color: var(--white);
+            font-weight: bold;
+        }
+
+        /* Pagination using global tokens */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: var(--gap-3);
+            margin-top: var(--gap-4);
+            padding: var(--gap-3);
+        }
+
+        .page-btn {
+            /* Use global .btn styles */
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            border-color: var(--accent);
+            color: var(--white);
+        }
+
+        .page-info {
+            display: flex;
+            align-items: center;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        /* Modal using global tokens */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--glass-8);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--grad-modal);
+            border-radius: var(--radius);
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+            border: 1px solid var(--c-border-strong);
+            box-shadow: var(--shadow-hover);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: var(--gap-4);
+            border-bottom: 1px solid var(--c-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--grad-quickpanel);
+            z-index: 1;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-modal:hover {
+            color: var(--ink);
+        }
+
+        .modal-body {
+            padding: var(--gap-4);
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: var(--gap-4);
+            background: var(--grad-card);
+            border-radius: var(--control-r);
+            color: var(--ink);
+            font-size: 14px;
+            box-shadow: var(--shadow-hover);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+            border: 1px solid var(--c-border-strong);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--ok);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--accent-2);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .stats-header {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .control-bar {
+                flex-direction: column;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .filter-buttons {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .severity-filter {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .vuln-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--gap-3);
+            }
+
+            .vuln-meta {
+                flex-direction: column;
+                gap: var(--gap-2);
+            }
+
+            .modal-content {
+                width: 95%;
+                max-height: 90vh;
+            }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Sidebar header -->
+        <div class="sidehead">
+            <!-- Title -->
+            <div class="sidetitle">Stats</div>
+            <div class="spacer"></div>
+            <button class="btn" id="hideSidebar"><span class="icon">⟵</span><span class="label">Hide</span></button>
+        </div>
+        <!-- Sidebar content -->
+        <div class="sidecontent" id="sidecontent"> 
+            <!-- Statistics Header -->
+            <div class="stats-header">
+                <div class="card">
+                    <div class="stat-label">Total CVEs</div>
+                    <div class="stat-number" id="total-cves">0</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">Active</div>
+                    <div class="stat-number" id="active-vulns">0</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">Remediated</div>
+                    <div class="stat-number" id="remediated-vulns">0</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">Critical</div>
+                    <div class="stat-number" id="critical-count">0</div>
+                </div>
+                <div class="card">
+                    <div class="stat-label">Affected Hosts</div>
+                    <div class="stat-number" id="affected-hosts">0</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main">
+        <!-- Control Bar -->
+        <div class="control-bar">
+            <div class="search-box">
+                <input type="text" class="search-input" placeholder="Search CVE, host, port..." id="search-input">
+                <button class="clear-search" onclick="clearSearch()">✖</button>
+            </div>
+            <div class="filter-buttons">
+                <button class="btn active" id="view-toggle" onclick="toggleView()">
+                    <span id="view-text">CVE View</span>
+                </button>
+                <button class="btn active" id="show-active" onclick="toggleActiveFilter(this)">
+                    Active Only
+                </button>
+                <button class="btn" id="show-history" onclick="toggleHistoryView()">
+                    Show History
+                </button>
+                <button class="btn" onclick="exportVulns()">
+                    Export CSV
+                </button>
+                <button class="btn" onclick="refreshData()">
+                    Refresh
+                </button>
+                <button class="btn" onclick="openSettings()">
+                    Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- Severity Filter -->
+        <div class="control-bar">
+            <div class="severity-filter">
+                <button class="btn chip critical" onclick="toggleSeverity('critical', this)">Critical</button>
+                <button class="btn chip high" onclick="toggleSeverity('high', this)">High</button>
+                <button class="btn chip medium" onclick="toggleSeverity('medium', this)">Medium</button>
+                <button class="btn chip low" onclick="toggleSeverity('low', this)">Low</button>
+            </div>
+        </div>
+
+        <!-- Vulnerability Grid -->
+        <div class="vuln-grid" id="vuln-grid">
+            <!-- Cards will be dynamically inserted here -->
+        </div>
+        
+        <!-- Pagination -->
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <!-- CVE Details Modal -->
+    <div class="modal" id="cve-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-cve-id">CVE Details</div>
+                <button class="close-modal" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- CVE details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+<script>
+    // Global state
+    let vulnerabilities = [];
+    let filteredVulns = [];
+    let showActiveOnly = true;
+    let severityFilters = new Set();
+    let fontSize = 14;
+    let currentView = 'cve'; // 'cve' or 'host'
+    let currentPage = 1;
+    let itemsPerPage = 20; // Optimisé pour Pi Zero
+    let totalPages = 1;
+    let uiState = {
+        expandedCards: new Set(),
+        expandedHosts: new Set(),
+        scrollPosition: 0,
+        searchValue: '',
+        focusedElement: null
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadVulnerabilities();
+        setupEventListeners();
+        if (!localStorage.getItem('refresh_interval')) {
+            localStorage.setItem('refresh_interval', '60000'); // 1 minute par défaut pour Pi Zero
+        }
+        startAutoRefresh();
+    });
+
+    // Mock data for development/demo
+    const mockVulnerabilities = [
+        {
+            id: 1,
+            vuln_id: 'CVE-2023-38408',
+            mac_address: '02:42:c0:a8:01:02',
+            ip: '192.168.1.2',
+            hostname: 'webserver-01',
+            port: 22,
+            severity: 'critical',
+            is_active: 1,
+            first_seen: '2025-09-17 16:17:09',
+            last_seen: '2025-09-17 16:17:09',
+            description: 'OpenSSH vulnerability allowing remote code execution',
+            cvss_score: 9.8,
+            affected_product: 'OpenSSH 8.x',
+            history: [
+                { date: '2025-09-17', event: 'Vulnerability detected' },
+                { date: '2025-09-16', event: 'Port scan completed' }
+            ]
+        },
+        {
+            id: 2,
+            vuln_id: 'CVE-2020-15778',
+            mac_address: '02:42:c0:a8:01:02',
+            ip: '192.168.1.2',
+            hostname: 'webserver-01',
+            port: 22,
+            severity: 'high',
+            is_active: 1,
+            first_seen: '2025-09-17 16:17:09',
+            last_seen: '2025-09-17 16:17:09',
+            description: 'Authentication bypass in SSH implementation',
+            cvss_score: 7.5,
+            affected_product: 'OpenSSH 7.x'
+        },
+        {
+            id: 3,
+            vuln_id: 'CVE-2021-41617',
+            mac_address: '02:42:c0:a8:01:03',
+            ip: '192.168.1.3',
+            hostname: 'database-01',
+            port: 3306,
+            severity: 'medium',
+            is_active: 0,
+            first_seen: '2025-09-15 10:00:00',
+            last_seen: '2025-09-16 15:00:00',
+            description: 'MySQL privilege escalation vulnerability (REMEDIATED)',
+            cvss_score: 5.4,
+            affected_product: 'MySQL 8.0',
+            history: [
+                { date: '2025-09-16', event: 'Patch applied successfully' },
+                { date: '2025-09-15', event: 'Vulnerability detected' }
+            ]
+        },
+        {
+            id: 4,
+            vuln_id: 'CVE-2023-12345',
+            mac_address: '02:42:c0:a8:01:02',
+            ip: '192.168.1.2',
+            hostname: 'webserver-01',
+            port: 80,
+            severity: 'medium',
+            is_active: 1,
+            first_seen: '2025-09-17 14:00:00',
+            last_seen: '2025-09-17 16:17:09',
+            description: 'Apache HTTP Server directory traversal',
+            cvss_score: 6.5,
+            affected_product: 'Apache 2.4.x'
+        },
+        {
+            id: 5,
+            vuln_id: 'CVE-2023-98765',
+            mac_address: '02:42:c0:a8:01:04',
+            ip: '192.168.1.4',
+            hostname: 'mail-server',
+            port: 25,
+            severity: 'high',
+            is_active: 1,
+            first_seen: '2025-09-17 12:00:00',
+            last_seen: '2025-09-17 16:17:09',
+            description: 'SMTP authentication bypass vulnerability',
+            cvss_score: 8.2,
+            affected_product: 'Postfix 3.x'
+        }
+    ];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+  loadVulnerabilities();
+  setupEventListeners();
+  if (!localStorage.getItem('refresh_interval')) {
+    localStorage.setItem('refresh_interval', '30000');
+  }
+  startAutoRefresh();
+});
+
+    function setupEventListeners() {
+        const searchInput = document.getElementById('search-input');
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            toggleClearButton();
+            // Debounce search for Pi Zero performance
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                filterVulnerabilities();
+            }, 300);
+        });
+    }
+
+    function toggleView() {
+        currentView = currentView === 'cve' ? 'host' : 'cve';
+        const btn = document.getElementById('view-toggle');
+        const btnText = document.getElementById('view-text');
+        
+        if (currentView === 'host') {
+            btnText.textContent = 'Host View';
+            btn.style.background = 'var(--info-gradient)';
+        } else {
+            btnText.textContent = 'CVE View';
+            btn.style.background = '';
+        }
+        
+        currentPage = 1; // Reset to first page
+        filterVulnerabilities();
+        showToast(`Switched to ${currentView === 'host' ? 'Host' : 'CVE'} view`, 'info');
+    }
+    function renderPagination() {
+        const pagination = document.getElementById('pagination');
+        
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let html = '';
+        
+        // Previous button
+        html += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>`;
+        
+        // Page numbers (show max 5 pages)
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, startPage + 4);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+        }
+        
+        // Page info
+        html += `<span class="page-info">Page ${currentPage} of ${totalPages}</span>`;
+        
+        // Next button
+        html += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
+        
+        pagination.innerHTML = html;
+    }
+
+    function changePage(page) {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        
+        if (currentView === 'host') {
+            renderHostView();
+        } else {
+            renderVulnerabilities();
+        }
+        
+        renderPagination();
+        
+        // Scroll to top
+        document.getElementById('vuln-grid').scrollTop = 0;
+    }
+    function loadVulnerabilities() {
+        const grid = document.getElementById('vuln-grid');
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">Loading vulnerabilities...</div>';
+        
+        fetch('/list_vulnerabilities')
+            .then(response => response.json())
+            .then(data => {
+                vulnerabilities = Array.isArray(data) ? data : (data?.vulnerabilities || []);
+                updateStats();
+                filterVulnerabilities();
+            })
+            .catch(error => {
+                console.error('Error loading vulnerabilities:', error);
+                grid.innerHTML = '<div style="text-align:center;padding:40px;color:#888;">Failed to load vulnerabilities</div>';
+            });
+    }
+
+    // --- (Optionnel) mock non utilisé désormais ---
+    async function fetchCVEDetails(cveId) {
+        return {
+            description: `Detailed description for ${cveId}`,
+            solution: 'Apply the latest security patches from the vendor.',
+            exploits: ['Metasploit module available', 'Public PoC on GitHub'],
+            references: [
+                'https://nvd.nist.gov/vuln/detail/' + cveId,
+                'https://cve.mitre.org/cgi-bin/cvename.cgi?name=' + cveId
+            ],
+            affected_versions: 'Versions < 8.9.1',
+            patched_versions: 'Version 8.9.1 and later'
+        };
+    }
+
+    function updateStats() {
+        const active = vulnerabilities.filter(v => v.is_active === 1);
+        const remediated = vulnerabilities.filter(v => v.is_active === 0);
+        const critical = active.filter(v => v.severity === 'critical');
+        const uniqueHosts = new Set(vulnerabilities.map(v => v.mac_address));
+
+        document.getElementById('total-cves').textContent = vulnerabilities.length;
+        document.getElementById('active-vulns').textContent = active.length;
+        document.getElementById('remediated-vulns').textContent = remediated.length;
+        document.getElementById('critical-count').textContent = critical.length;
+        document.getElementById('affected-hosts').textContent = uniqueHosts.size;
+    }
+
+    function filterVulnerabilities() {
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        
+        filteredVulns = vulnerabilities.filter(vuln => {
+            if (showActiveOnly && vuln.is_active === 0) return false;
+            if (severityFilters.size > 0 && !severityFilters.has(vuln.severity)) return false;
+            if (searchTerm) {
+                const searchableText = `${vuln.vuln_id} ${vuln.ip} ${vuln.hostname} ${vuln.port} ${vuln.description}`.toLowerCase();
+                if (!searchableText.includes(searchTerm)) return false;
+            }
+            return true;
+        });
+        
+        // Calculate pagination
+        totalPages = Math.ceil(filteredVulns.length / itemsPerPage);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+        
+        if (currentView === 'host') {
+            renderHostView();
+        } else {
+            renderVulnerabilities();
+        }
+        
+        renderPagination();
+    }
+
+
+
+
+
+    function renderHostView() {
+        const grid = document.getElementById('vuln-grid');
+        
+        const hostGroups = {};
+        filteredVulns.forEach(vuln => {
+            const hostKey = `${vuln.mac_address}_${vuln.hostname || 'unknown'}`;
+            if (!hostGroups[hostKey]) {
+                hostGroups[hostKey] = {
+                    mac: vuln.mac_address,
+                    hostname: vuln.hostname || 'Unknown',
+                    ip: vuln.ip || 'N/A',
+                    vulnerabilities: []
+                };
+            }
+            hostGroups[hostKey].vulnerabilities.push(vuln);
+        });
+        
+        const hostArray = Object.values(hostGroups);
+        
+        // Pagination pour Host View
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const paginatedHosts = hostArray.slice(start, end);
+        
+        if (paginatedHosts.length === 0) {
+            grid.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #888;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🔍</div>
+                    <div>No hosts found matching your criteria</div>
+                </div>
+            `;
+            return;
+        }
+        
+        grid.innerHTML = paginatedHosts.map((host, index) => {
+            const criticalCount = host.vulnerabilities.filter(v => v.severity === 'critical' && v.is_active === 1).length;
+            const highCount = host.vulnerabilities.filter(v => v.severity === 'high' && v.is_active === 1).length;
+            const mediumCount = host.vulnerabilities.filter(v => v.severity === 'medium' && v.is_active === 1).length;
+            const lowCount = host.vulnerabilities.filter(v => v.severity === 'low' && v.is_active === 1).length;
+            const remediatedCount = host.vulnerabilities.filter(v => v.is_active === 0).length;
+            const kevCount = host.vulnerabilities.filter(v => v.is_kev && v.is_active === 1).length;
+            const exploitCount = host.vulnerabilities.filter(v => v.has_exploit && v.is_active === 1).length;
+            const hostId = `host-${index}`;
+
+            return `
+                <div class="host-card ${uiState.expandedHosts.has(hostId) ? 'expanded' : ''}" data-id="${hostId}" style="animation-delay: ${index * 0.05}s">
+                    <div class="host-header" onclick="toggleHostCard('${hostId}')">
+                        <div class="host-info">
+                            <div class="host-name">
+                                <span>🖥️ ${host.hostname}</span>
+                                ${remediatedCount > 0 ? `<span class="tag" style="background: #4CAF50; padding: 3px 8px; border-radius: 12px; font-size: 11px;">${remediatedCount} FIXED</span>` : ''}
+                                ${kevCount > 0 ? `<span class="badge-kev">KEV: ${kevCount}</span>` : ''}
+                                ${exploitCount > 0 ? `<span class="badge-exploit">Exploits: ${exploitCount}</span>` : ''}
+                            </div>
+                            <div class="host-details">
+                                <span>📍 ${host.ip}</span>
+                                <span>🔗 ${host.mac}</span>
+                                <span>🎯 ${host.vulnerabilities.length} vulnerabilities</span>
+                            </div>
+                        </div>
+                        <div class="host-stats">
+                            ${criticalCount > 0 ? `<span class="host-stat-badge severity-critical">${criticalCount} Critical</span>` : ''}
+                            ${highCount > 0 ? `<span class="host-stat-badge severity-high">${highCount} High</span>` : ''}
+                            ${mediumCount > 0 ? `<span class="host-stat-badge severity-medium">${mediumCount} Medium</span>` : ''}
+                            ${lowCount > 0 ? `<span class="host-stat-badge severity-low">${lowCount} Low</span>` : ''}
+                            <span class="expand-icon">▼</span>
+                        </div>
+                    </div>
+                    <div class="host-vulns">
+                        <div class="host-vuln-list">
+                            <div class="host-summary">
+                                <div class="host-summary-item">
+                                    <div class="host-summary-value">${host.vulnerabilities.filter(v => v.is_active === 1).length}</div>
+                                    <div class="host-summary-label">Active</div>
+                                </div>
+                                <div class="host-summary-item">
+                                    <div class="host-summary-value">${remediatedCount}</div>
+                                    <div class="host-summary-label">Fixed</div>
+                                </div>
+                                <div class="host-summary-item">
+                                    <div class="host-summary-value">${[...new Set(host.vulnerabilities.map(v => v.port))].length}</div>
+                                    <div class="host-summary-label">Ports</div>
+                                </div>
+                                <div class="host-summary-item">
+                                    <div class="host-summary-value">${Math.max(...host.vulnerabilities.map(v => v.cvss_score || 0)).toFixed(1)}</div>
+                                    <div class="host-summary-label">Max CVSS</div>
+                                </div>
+                            </div>
+                            ${host.vulnerabilities.sort((a, b) => {
+                                if (a.is_active !== b.is_active) return b.is_active - a.is_active;
+                                const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
+                                return (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
+                            }).map(vuln => `
+                                <div class="host-vuln-item ${vuln.is_active === 0 ? 'inactive' : ''}">
+                                    <div class="host-vuln-info">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span class="host-vuln-id">${vuln.vuln_id}</span>
+                                            <span class="severity-badge severity-${vuln.severity}">${vuln.severity}</span>
+                                            ${vuln.is_active === 0 ? '<span class="tag" style="background: #4CAF50;">REMEDIATED</span>' : ''}
+                                        </div>
+                                        <div class="host-vuln-meta">
+                                            <span>🔌 Port ${vuln.port || '0'}</span>
+                                            <span>📊 CVSS ${vuln.cvss_score || 'N/A'}</span>
+                                            <span>📅 ${formatDate(vuln.last_seen)}</span>
+                                        </div>
+                                        <div class="host-vuln-badges">
+                                            ${vuln.is_kev ? '<span class="badge-kev">KEV</span>' : ''}
+                                            ${vuln.has_exploit ? '<span class="badge-exploit">Exploit Available</span>' : ''}
+                                            ${vuln.epss > 0.5 ? `<span class="badge-epss-high">EPSS ${(vuln.epss * 100).toFixed(1)}%</span>` : ''}
+                                            ${vuln.epss > 0.1 && vuln.epss <= 0.5 ? `<span class="badge-epss-medium">EPSS ${(vuln.epss * 100).toFixed(1)}%</span>` : ''}
+                                        </div>
+                                        <div style="color: #aaa; font-size: 12px; margin-top: 5px;">
+                                            ${vuln.description || 'No description available'}
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 5px;">
+                                        <button class="action-btn btn-details" style="padding: 6px 12px; font-size: 11px;" onclick="showCVEDetails('${vuln.vuln_id}')">
+                                            Details
+                                        </button>
+                                        ${vuln.is_active === 1 ? `
+                                            <button class="action-btn btn-remediate" style="padding: 6px 12px; font-size: 11px;" onclick="showRemediation('${vuln.vuln_id}')">
+                                                Fix
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+
+    function toggleHostCard(hostId) {
+        const card = document.querySelector(`.host-card[data-id="${hostId}"]`);
+        if (!card) return;
+        card.classList.toggle('expanded');
+        if (card.classList.contains('expanded')) {
+            uiState.expandedHosts.add(hostId);
+        } else {
+            uiState.expandedHosts.delete(hostId);
+        }
+    }
+
+
+    function renderVulnerabilities() {
+        const grid = document.getElementById('vuln-grid');
+        
+        // Pagination
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const paginatedVulns = filteredVulns.slice(start, end);
+        
+        if (paginatedVulns.length === 0) {
+            grid.innerHTML = `
+                <div style="text-align:center;padding:40px;color:#888;">
+                    <div style="font-size:48px;margin-bottom:10px;">🔍</div>
+                    <div>No vulnerabilities found matching your criteria</div>
+                </div>`;
+            return;
+        }
+
+        const newHTML = paginatedVulns.map((vuln, index) => {
+            const kevBadge = vuln.is_kev ? `<span class="tag" style="background:#f93b1d;">KEV</span>` : '';
+            const expBadge = vuln.has_exploit ? `<span class="tag" style="background:#9c27b0;">Exploit</span>` : '';
+            const epssBadge = (typeof vuln.epss === 'number' && vuln.epss > 0.1)
+                ? `<span class="tag" title="Exploit Prediction Scoring System">EPSS ${(vuln.epss * 100).toFixed(2)}%</span>`
+                : '';
+
+            return `
+                <div class="vuln-card ${vuln.is_active ? '' : 'inactive'} ${uiState.expandedCards.has(String(vuln.id)) ? 'expanded' : ''}" 
+                     data-id="${vuln.id}"
+                     style="animation-delay:${index * 0.05}s">
+                    <div class="vuln-header" onclick="toggleCard(${vuln.id})">
+                        <div class="vuln-title">
+                            <span class="vuln-id">${vuln.vuln_id}</span>
+                            <span class="severity-badge severity-${vuln.severity}">${vuln.severity}</span>
+                            ${vuln.is_active === 0 ? '<span class="tag" style="background:#4CAF50;">REMEDIATED</span>' : ''}
+                            ${kevBadge}${expBadge}${epssBadge}
+                        </div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="vuln-meta" style="padding:10px 15px;">
+                        <div class="meta-item">📍 ${vuln.ip || 'N/A'}</div>
+                        <div class="meta-item">🖥️ ${vuln.hostname || 'N/A'}</div>
+                        <div class="meta-item">🔌 Port ${vuln.port || '0'}</div>
+                        <div class="meta-item">📊 CVSS ${vuln.cvss_score || 'N/A'}</div>
+                    </div>
+                    <div class="vuln-content">
+                        <div class="vuln-details">
+                            <div class="detail-section">
+                                <div class="detail-title">Description</div>
+                                <div class="detail-content">${vuln.description || 'No description available'}</div>
+                            </div>
+                            <div class="detail-section">
+                                <div class="detail-title">Affected Product</div>
+                                <div class="detail-content">${vuln.affected_product || 'Unknown'}</div>
+                            </div>
+                            <div class="detail-section">
+                                <div class="detail-title">Timeline</div>
+                                <div class="detail-content">
+                                    First seen: ${formatDate(vuln.first_seen)}<br>
+                                    Last seen: ${formatDate(vuln.last_seen)}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="action-btn btn-details" onclick="showCVEDetails('${vuln.vuln_id}')">View Details</button>
+                            ${vuln.is_active === 1 ? `<button class="action-btn btn-remediate" onclick="showRemediation('${vuln.vuln_id}')">Remediation</button>` : ''}
+                            <button class="action-btn btn-export" onclick="exportSingleVuln(${vuln.id})">Export</button>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        grid.innerHTML = newHTML;
+    }
+
+  
+    function toggleCard(id) {
+        const card = document.querySelector(`.vuln-card[data-id="${id}"]`);
+        if (!card) return;
+        card.classList.toggle('expanded');
+        const key = String(id);
+        if (card.classList.contains('expanded')) {
+            uiState.expandedCards.add(key);
+        } else {
+            uiState.expandedCards.delete(key);
+        }
+    }
+
+
+
+
+
+
+    function toggleActiveFilter(btn) {
+        showActiveOnly = !showActiveOnly;
+        btn.classList.toggle('active');
+        btn.textContent = showActiveOnly ? 'Active Only' : 'Show All';
+        filterVulnerabilities();
+    }
+
+    function toggleHistoryView() {
+    const btn = document.getElementById('show-history');
+    btn.classList.toggle('active');
+
+    fetch('/vulnerabilities/history?limit=500')
+        .then(r => r.json())
+        .then(data => {
+        // transforme l'historique en une "vue" affichable (simple : on remplace la grille par la timeline des événements)
+        const history = Array.isArray(data?.history) ? data.history : [];
+
+        const grid = document.getElementById('vuln-grid');
+        if (history.length === 0) {
+            grid.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#888;">
+                <div style="font-size:48px;margin-bottom:10px;">🕰️</div>
+                <div>No history entries</div>
+            </div>`;
+            return;
+        }
+
+        grid.innerHTML = history.map((h, i) => `
+            <div class="vuln-card" style="animation-delay:${i * 0.02}s">
+            <div class="vuln-header">
+                <div class="vuln-title">
+                <span class="vuln-id">${h.vuln_id}</span>
+                <span class="tag">${h.event}</span>
+                </div>
+            </div>
+            <div class="vuln-meta" style="padding:10px 15px;">
+                <div class="meta-item">📅 ${new Date(h.seen_at).toLocaleString()}</div>
+                <div class="meta-item">📍 ${h.ip || '—'}</div>
+                <div class="meta-item">🖥️ ${h.hostname || '—'}</div>
+                <div class="meta-item">🔌 Port ${h.port ?? '0'}</div>
+                <div class="meta-item">🔗 ${h.mac_address}</div>
+            </div>
+            </div>
+        `).join('');
+        })
+        .catch(err => {
+        console.error('Error loading history:', err);
+        showToast('Failed to load history data', 'error');
+        });
+
+    showToast('History view toggled', 'info');
+    }
+
+
+    function toggleSeverity(severity, btn) {
+        btn.classList.toggle('active');
+        if (severityFilters.has(severity)) {
+            severityFilters.delete(severity);
+        } else {
+            severityFilters.add(severity);
+        }
+        filterVulnerabilities();
+    }
+
+    function clearSearch() {
+        document.getElementById('search-input').value = '';
+        toggleClearButton();
+        filterVulnerabilities();
+    }
+
+    function toggleClearButton() {
+        const input = document.getElementById('search-input');
+        const clearBtn = document.querySelector('.clear-search');
+        if (input.value.length > 0) {
+            clearBtn.classList.add('show');
+        } else {
+            clearBtn.classList.remove('show');
+        }
+    }
+
+    // ---------- CVE DETAILS ENRICHIS ----------
+async function showCVEDetails(cveId) {
+  const modal = document.getElementById('cve-modal');
+  const modalBody = document.getElementById('modal-body');
+  const modalTitle = document.getElementById('modal-cve-id');
+
+  modalTitle.textContent = cveId;
+  modalBody.innerHTML = '<div class="skeleton" style="height: 200px; border-radius: 8px;"></div>';
+  modal.classList.add('show');
+
+  try {
+    const r = await fetch(`/api/cve/${encodeURIComponent(cveId)}`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const details = await r.json();
+
+    const exploits = Array.isArray(details.exploits)
+      ? details.exploits.map(e => `Exploit-DB: ${e.title}`)
+      : [];
+
+    modalBody.innerHTML = `
+      <div class="detail-section">
+        <div class="detail-title">Description</div>
+        <div class="detail-content">${escapeHTML(details.description || '—')}</div>
+      </div>
+      ${details.cvss ? `
+      <div class="detail-section">
+        <div class="detail-title">CVSS</div>
+        <div class="detail-content">
+          Score: ${details.cvss.baseScore} (${details.cvss.baseSeverity})<br>
+          Vector: ${details.cvss.vectorString || 'N/A'}
+        </div>
+      </div>` : ''}
+      ${details.is_kev ? `
+        <div class="detail-section">
+          <div class="detail-title">CISA KEV</div>
+          <div class="detail-content"><span class="tag" style="background:#f93b1d;">Known Exploited</span></div>
+        </div>` : ''}
+        ${details.epss ? `
+        <div class="detail-section">
+            <div class="detail-title">EPSS</div>
+            <div class="detail-content">
+            Probability: ${(details.epss.probability * 100).toFixed(2)}% · Percentile: ${(details.epss.percentile * 100).toFixed(1)}%
+            </div>
+        </div>
+        ` : ''}
+      ${buildAffectedHTML(details.affected)}
+        <div class="detail-section">
+        <div class="detail-title">Known Exploits</div>
+        <div class="detail-content">
+            ${(details.exploits && details.exploits.length)
+            ? `<div class="tags-container">${details.exploits.map(e => `<span class="tag">${e}</span>`).join('')}</div>`
+            : 'None'}
+        </div>
+        </div>
+      <div class="detail-section">
+        <div class="detail-title">References</div>
+        <div class="detail-content">
+          ${(details.references || []).map(ref => `
+            <a href="${ref}" target="_blank" style="color:#667eea;text-decoration:none;">${ref}</a><br>`).join('')}
+        </div>
+      </div>
+      ${details.lastModified ? `
+      <div class="detail-section">
+        <div class="detail-title">Last Modified</div>
+        <div class="detail-content">${new Date(details.lastModified).toLocaleString()}</div>
+      </div>` : ''}
+    `;
+  } catch (e) {
+    console.error(e);
+    modalBody.innerHTML = `<div style="text-align:center;color:#888;padding:20px;">Failed to load CVE details.</div>`;
+  }
+}
+
+
+function normalizeAffected(affectedRaw) {
+  if (!affectedRaw || !Array.isArray(affectedRaw)) return [];
+  return affectedRaw.map(item => {
+    const vendor = item.vendor || item.vendor_name || item.vendorName || 'n/a';
+    // `product` peut être string, array, ou objet { product_name }
+    let product = item.product || item.product_name || item.productName || 'n/a';
+    if (Array.isArray(product)) product = product.join(', ');
+    if (typeof product === 'object' && product !== null) {
+      product = product.product || product.product_name || product.productName || 'n/a';
+    }
+
+    // versions est une liste d’objets (status/version/lessThan*/versionType)
+    let versions = 'unspecified';
+    if (Array.isArray(item.versions) && item.versions.length) {
+      versions = item.versions.map(v => {
+        const vStr = [
+          v.version ?? v.versionName ?? v.version_value,
+          v.versionType ? `[${v.versionType}]` : '',
+          v.lessThan ? `< ${v.lessThan}` : '',
+          v.lessThanOrEqual ? `<= ${v.lessThanOrEqual}` : '',
+          v.status ? `(${v.status})` : ''
+        ].filter(Boolean).join(' ');
+        return (vStr || 'unspecified').trim();
+      }).join(', ');
+    } else if (typeof item.versions === 'string') {
+      versions = item.versions;
+    }
+    return { vendor, product, versions: versions || 'unspecified' };
+  });
+}
+
+function buildAffectedHTML(affectedRaw) {
+  const rows = normalizeAffected(affectedRaw);
+  if (!rows.length) return '';
+  const body = rows.map(a => `
+    <tr>
+      <td>${escapeHTML(a.vendor)}</td>
+      <td>${escapeHTML(a.product)}</td>
+      <td>${escapeHTML(a.versions)}</td>
+    </tr>
+  `).join('');
+  return `
+    <div class="detail-section">
+      <div class="detail-title">Affected (MITRE)</div>
+      <div class="detail-content">
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; border-bottom:1px solid #444; padding:6px 4px;">Vendor</th>
+                <th style="text-align:left; border-bottom:1px solid #444; padding:6px 4px;">Product</th>
+                <th style="text-align:left; border-bottom:1px solid #444; padding:6px 4px;">Versions</th>
+              </tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+}
+
+
+    function escapeHTML(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    async function showRemediation(cveId) {
+        const modal = document.getElementById('cve-modal');
+        const modalBody = document.getElementById('modal-body');
+        const modalTitle = document.getElementById('modal-cve-id');
+        
+        modalTitle.textContent = `Remediation for ${cveId}`;
+        modal.classList.add('show');
+        
+        modalBody.innerHTML = `
+            <div class="detail-section">
+                <div class="detail-title">Automated Remediation Options</div>
+                <div class="action-buttons">
+                    <button class="action-btn btn-remediate" onclick="applyPatch('${cveId}')">
+                        Apply Security Patch
+                    </button>
+                    <button class="action-btn btn-details" onclick="scheduleRemediation('${cveId}')">
+                        Schedule Remediation
+                    </button>
+                </div>
+            </div>
+            <div class="detail-section">
+                <div class="detail-title">Manual Steps</div>
+                <div class="detail-content">
+                    1. Update the affected software to the latest version<br>
+                    2. Apply vendor-specific security patches<br>
+                    3. Review and update firewall rules<br>
+                    4. Monitor for any suspicious activity<br>
+                    5. Verify the remediation was successful
+                </div>
+            </div>
+            <div class="detail-section">
+                <div class="detail-title">Mitigation (if patch not available)</div>
+                <div class="detail-content">
+                    - Implement network segmentation<br>
+                    - Apply compensating controls<br>
+                    - Increase monitoring for this vulnerability<br>
+                    - Consider disabling affected services if not critical
+                </div>
+            </div>
+        `;
+    }
+
+    function applyPatch(cveId) {
+        // À implémenter côté serveur
+        showToast(`Patch for ${cveId} scheduled for application`, 'success');
+        closeModal();
+    }
+
+    function scheduleRemediation(cveId) {
+        // À implémenter côté serveur
+        showToast(`Remediation scheduling for ${cveId} opened`, 'info');
+    }
+
+    function closeModal() {
+        document.getElementById('cve-modal').classList.remove('show');
+    }
+
+    function exportVulns() {
+        let csvContent = 'CVE ID,IP Address,Hostname,Port,Severity,Status,First Seen,Last Seen\n';
+        
+        filteredVulns.forEach(vuln => {
+            const status = vuln.is_active ? 'Active' : 'Remediated';
+            csvContent += `"${vuln.vuln_id}","${vuln.ip}","${vuln.hostname}","${vuln.port}","${vuln.severity}","${status}","${vuln.first_seen}","${vuln.last_seen}"\n`;
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vulnerabilities_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showToast('Vulnerabilities exported successfully', 'success');
+    }
+
+    function exportSingleVuln(id) {
+        const vuln = vulnerabilities.find(v => v.id === id);
+        if (!vuln) return;
+        
+        let content = `CVE Report - ${vuln.vuln_id}\n`;
+        content += `${'='.repeat(50)}\n\n`;
+        content += `CVE ID: ${vuln.vuln_id}\n`;
+        content += `Severity: ${vuln.severity.toUpperCase()}\n`;
+        content += `CVSS Score: ${vuln.cvss_score || 'N/A'}\n`;
+        content += `Status: ${vuln.is_active ? 'Active' : 'Remediated'}\n\n`;
+        content += `Target Information:\n`;
+        content += `  IP Address: ${vuln.ip}\n`;
+        content += `  Hostname: ${vuln.hostname}\n`;
+        content += `  Port: ${vuln.port}\n`;
+        content += `  MAC Address: ${vuln.mac_address}\n\n`;
+        content += `Timeline:\n`;
+        content += `  First Seen: ${vuln.first_seen}\n`;
+        content += `  Last Seen: ${vuln.last_seen}\n\n`;
+        content += `Description:\n${vuln.description}\n\n`;
+        content += `Affected Product: ${vuln.affected_product || 'Unknown'}\n`;
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${vuln.vuln_id}_report.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showToast(`Report for ${vuln.vuln_id} exported`, 'success');
+    }
+
+    function refreshData() {
+        showToast('Refreshing vulnerability data...', 'info');
+        loadVulnerabilities();
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return 'Unknown';
+        const date = new Date(dateStr);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    function toggleToolbar() {
+        const mainToolbar = document.querySelector('.toolbar');
+        const toggleIcon = document.getElementById('toggle-icon');
+        if (mainToolbar.classList.contains('hidden')) {
+            mainToolbar.classList.remove('hidden');
+            toggleIcon.src = '/web/images/hide.png';
+        } else {
+            mainToolbar.classList.add('hidden');
+            toggleIcon.src = '/web/images/reveal.png';
+        }
+    }
+
+    function adjustFontSize(change) {
+        fontSize += change;
+        document.querySelectorAll('.detail-content, .vuln-id, .meta-item').forEach(el => {
+            el.style.fontSize = `${fontSize}px`;
+        });
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+        } else if (e.ctrlKey && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('search-input').focus();
+        } else if (e.ctrlKey && e.key === 'e') {
+            e.preventDefault();
+            exportVulns();
+        }
+    });
+
+    // Click outside modal to close
+    document.getElementById('cve-modal').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            closeModal();
+        }
+    });
+
+    // ----------- (Fallbacks facultatifs, conservés) -----------
+    async function fetchFromAPI() {
+        try {
+            const response = await fetch('/list_vulnerabilities');
+            if (!response.ok) throw new Error('Failed to fetch');
+            const html = await response.text();
+            return parseVulnerabilitiesHTML(html);
+        } catch (error) {
+            console.error('Failed to fetch vulnerabilities:', error);
+            try {
+                const dbResponse = await fetch('/api/vulnerabilities');
+                if (dbResponse.ok) {
+                    return await dbResponse.json();
+                }
+            } catch (e) {
+                console.error('API fallback failed:', e);
+            }
+            return mockVulnerabilities;
+        }
+    }
+
+    function parseVulnerabilitiesHTML(html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const rows = doc.querySelectorAll('table tr');
+        const vulns = [];
+        for (let i = 1; i < rows.length; i++) {
+            const cells = rows[i].querySelectorAll('td');
+            if (cells.length >= 8) {
+                const vulnId = cells[4]?.textContent?.trim() || '';
+                const cvssScore = parseFloat(cells[7]?.textContent) || 0;
+                let severity = 'low';
+                if (cvssScore >= 9.0) severity = 'critical';
+                else if (cvssScore >= 7.0) severity = 'high';
+                else if (cvssScore >= 4.0) severity = 'medium';
+                
+                vulns.push({
+                    id: parseInt(cells[0]?.textContent) || i,
+                    mac_address: cells[1]?.textContent?.trim() || '',
+                    ip: cells[2]?.textContent?.trim() || '',
+                    hostname: cells[3]?.textContent?.trim() || '',
+                    vuln_id: vulnId,
+                    port: parseInt(cells[5]?.textContent) || 0,
+                    first_seen: cells[6]?.textContent?.trim() || '',
+                    last_seen: cells[7]?.textContent?.trim() || '',
+                    is_active: parseInt(cells[8]?.textContent) || 1,
+                    severity,
+                    cvss_score: cvssScore,
+                    description: `${vulnId} vulnerability detected`,
+                    affected_product: 'Unknown'
+                });
+            }
+        }
+        return vulns;
+    }
+
+    // ---------- Intégrations CVE : NVD / MITRE / CISA KEV / Exploit-DB ----------
+    async function fetchCVEFromNVD(cveId) {
+        const apiKey = localStorage.getItem('nvd_api_key') || '';
+        const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${encodeURIComponent(cveId)}`;
+        try {
+            const headers = apiKey ? { 'apiKey': apiKey } : {};
+            const response = await fetch(url, { headers });
+            if (!response.ok) throw new Error('NVD API error');
+            const data = await response.json();
+            if (data.vulnerabilities && data.vulnerabilities.length > 0) {
+                const cve = data.vulnerabilities[0].cve;
+                const cvss = cve.metrics?.cvssMetricV31?.[0]?.cvssData
+                          || cve.metrics?.cvssMetricV2?.[0]?.cvssData
+                          || null;
+                return {
+                    description: cve.descriptions?.[0]?.value || 'No description available',
+                    cvss,
+                    references: (cve.references || []).map(r => r.url) || [],
+                    lastModified: cve.lastModified
+                };
+            }
+        } catch (error) {
+            console.error('NVD API error:', error);
+        }
+        return null;
+    }
+
+    async function fetchCVEFromMITRE(cveId) {
+        const url = `https://cveawg.mitre.org/api/cve/${encodeURIComponent(cveId)}`;
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    description: data.containers?.cna?.descriptions?.[0]?.value,
+                    affected: data.containers?.cna?.affected,
+                    solutions: data.containers?.cna?.solutions
+                };
+            }
+        } catch (error) {
+            console.error('MITRE API error:', error);
+        }
+        return null;
+    }
+
+    async function fetchExploitInfo(cveId) {
+        const exploits = [];
+        try {
+            const response = await fetch(`/api/exploitdb/${encodeURIComponent(cveId)}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.exploits) {
+                    exploits.push(...data.exploits.map(e => `Exploit-DB: ${e.title}`));
+                }
+            }
+        } catch (_) {}
+
+        try {
+            const response = await fetch('https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json');
+            if (response.ok) {
+                const data = await response.json();
+                const kev = (data.vulnerabilities || []).find(v => v.cveID === cveId);
+                if (kev) {
+                    exploits.push(`CISA KEV: ${kev.vulnerabilityName || 'Known exploited'}`);
+                }
+            }
+        } catch (_) {}
+        return exploits;
+    }
+
+    async function fetchEnhancedCVEDetails(cveId) {
+        showToast('Fetching CVE details from multiple sources...', 'info');
+        const [nvdData, mitreData, exploits] = await Promise.all([
+            fetchCVEFromNVD(cveId),
+            fetchCVEFromMITRE(cveId),
+            fetchExploitInfo(cveId)
+        ]);
+
+        return {
+            description: nvdData?.description || mitreData?.description || `No detailed description available for ${cveId}`,
+            cvss: nvdData?.cvss || null,
+            solution: mitreData?.solutions?.[0]?.value || 'Apply vendor patches when available',
+            exploits: exploits.length > 0 ? exploits : ['No known public exploits'],
+            references: nvdData?.references || [],
+            affected: mitreData?.affected,
+            lastModified: nvdData?.lastModified || null
+        };
+    }
+
+    // -------- Auto-refresh helpers (si besoin de passer à un réglage dynamique plus tard) --------
+    let autoRefreshInterval;
+    function startAutoRefresh() {
+        const interval = parseInt(localStorage.getItem('refresh_interval') || '30000', 10);
+        if (interval > 0) {
+            autoRefreshInterval = setInterval(() => {
+                if (document.visibilityState === 'visible' && !isUserInteracting()) {
+                    loadVulnerabilities();
+                }
+            }, interval);
+        }
+    }
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+    function isUserInteracting() {
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement.id === 'search-input') return true;
+        if (document.querySelector('.modal.show')) return true;
+        if (document.querySelector('.vuln-card:hover, .host-card:hover')) return true;
+        return false;
+    }
+
+    // Settings management (clé NVD + intervalle auto-refresh)
+    function openSettings() {
+        const modal = document.getElementById('cve-modal');
+        const modalBody = document.getElementById('modal-body');
+        const modalTitle = document.getElementById('modal-cve-id');
+        
+        modalTitle.textContent = 'API Settings';
+        modalBody.innerHTML = `
+            <div class="detail-section">
+                <div class="detail-title">NVD API Configuration</div>
+                <input type="text" 
+                       id="nvd-api-key" 
+                       placeholder="Enter NVD API Key (optional)" 
+                       value="\${localStorage.getItem('nvd_api_key') || ''}"
+                       style="width: 100%; padding: 8px; background: #333; border: 1px solid #444; color: #fff; border-radius: 4px;">
+                <div style="font-size: 12px; color: #888; margin-top: 5px;">
+                    Get your free API key from 
+                    <a href="https://nvd.nist.gov/developers/request-an-api-key" target="_blank" style="color: #667eea;">NVD website</a>
+                </div>
+            </div>
+            <div class="detail-section">
+                <div class="detail-title">Auto-refresh Interval</div>
+                <select id="refresh-interval" style="width: 100%; padding: 8px; background: #333; border: 1px solid #444; color: #fff; border-radius: 4px;">
+                    <option value="30000">30 seconds</option>
+                    <option value="60000">1 minute</option>
+                    <option value="300000">5 minutes</option>
+                    <option value="0">Disabled</option>
+                </select>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn btn-remediate" onclick="saveSettings()">Save Settings</button>
+                <button class="action-btn btn-details" onclick="closeModal()">Cancel</button>
+            </div>
+        `;
+        modal.classList.add('show');
+
+        // Positionner la valeur actuelle
+        const sel = document.getElementById('refresh-interval');
+        if (sel) sel.value = localStorage.getItem('refresh_interval') || '30000';
+    }
+
+    function saveSettings() {
+        const apiKey = document.getElementById('nvd-api-key')?.value || '';
+        const interval = document.getElementById('refresh-interval')?.value || '30000';
+        
+        localStorage.setItem('nvd_api_key', apiKey);
+        localStorage.setItem('refresh_interval', interval);
+        
+        stopAutoRefresh();
+        if (interval !== '0') startAutoRefresh();
+        
+        showToast('Settings saved successfully', 'success');
+        closeModal();
+    }
+</script>
+
+
+  </body>
+</html>

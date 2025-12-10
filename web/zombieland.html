@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Bjorn Cyberviking – Zombieland C2C</title>
+  <link rel="icon" href="/web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/web/css/global.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#333" />
+  <script src="/web/js/global.js" defer></script>
+  <!-- Tailwind is kept but de‑emphasized; global.css drives most visuals -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.451.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Minimal page‑specific styles, aligned to global tokens/classes -->
+  <style>
+    /* Use global tokens; avoid redefining globals */
+    body { background: var(--bg); color: var(--ink); }
+
+    /* Panels used by this page; backed by global tokens */
+    .panel { background: var(--panel); border: 1px solid var(--c-border); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+    /* Buttons: rely on global .btn; add optional variants used here */
+    .btn-icon { padding: 8px; min-width: 36px; display: inline-flex; align-items: center; justify-content: center; }
+    .btn-primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 22%, var(--btn-bg-solid)), var(--btn-bg-solid)); border-color: color-mix(in oklab, var(--accent) 55%, var(--border)); }
+    .btn-danger { background: linear-gradient(180deg, color-mix(in oklab, var(--danger) 20%, var(--btn-bg-solid)), var(--btn-bg-solid)); border-color: color-mix(in oklab, var(--danger) 55%, var(--border)); }
+
+    /* Status Pills using global .pill */
+    .pill { background: var(--c-pill-bg); border: 1px solid var(--c-border); color: var(--muted); }
+    .pill.online  { border-color: color-mix(in oklab, var(--ok) 60%, transparent); color: var(--ok); }
+    .pill.offline { border-color: color-mix(in oklab, var(--danger) 60%, transparent); color: var(--danger); }
+    .pill.idle    { border-color: color-mix(in oklab, var(--warning) 60%, transparent); color: var(--warning); }
+
+    /* Terminal block (renamed from .console to avoid global.css conflict) */
+    .term { background: var(--c-panel); border: 1px solid var(--c-border-strong); border-radius: 10px; }
+    .console-output { height: 400px; overflow-y: auto; padding: 12px; font: var(--font-mono); background: var(--grad-console); border-radius: 8px; }
+    .console-line { margin: 4px 0; display: flex; align-items: flex-start; gap: 8px; font: var(--font-mono); }
+    .console-time { color: var(--muted); font-size: 11px; }
+    .console-type { padding: 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid var(--c-border); background: var(--c-chip-bg); }
+    .console-type.tx { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 60%, transparent); }
+    .console-type.rx { color: var(--accent-2); border-color: color-mix(in oklab, var(--accent-2) 60%, transparent); }
+    .console-content { flex: 1; word-break: break-word; }
+    .console-content pre { margin: 0; white-space: pre-wrap; }
+
+    /* Agents */
+    .agent-card { transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; cursor: pointer; position: relative; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--grad-card); box-shadow: var(--shadow); }
+    .agent-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-hover); }
+    .agent-card.selected { border-color: color-mix(in oklab, var(--accent) 55%, transparent); background: var(--grad-chip-selected); }
+    .os-icon { width: 24px; height: 24px; }
+
+    /* Toasts: use global .toasts/.toast; add color borders per level */
+    .toast.info    { border-color: color-mix(in oklab, var(--accent-2) 60%, transparent); }
+    .toast.success { border-color: color-mix(in oklab, var(--ok) 60%, transparent); }
+    .toast.error   { border-color: color-mix(in oklab, var(--danger) 60%, transparent); }
+    .toast.warning { border-color: color-mix(in oklab, var(--warning) 60%, transparent); }
+
+    /* Quick commands */
+    .quick-cmd { padding: 6px 12px; background: var(--c-panel); border: 1px dashed var(--c-border); border-radius: 8px; font-size: 12px; cursor: pointer; }
+    .quick-cmd:hover { box-shadow: 0 0 0 1px var(--c-border) inset, 0 8px 22px var(--glow-weak); }
+
+    /* Metrics */
+    .metric { text-align: center; }
+    .metric-value { font-size: 32px; font-weight: 800; color: var(--acid); }
+    .metric-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* File Browser */
+    .file-item { padding: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; border-radius: 10px; }
+    .file-item:hover { background: var(--c-panel); }
+    .file-item.directory { color: var(--accent-2); }
+
+    /* Modal: reuse global .modal / .modal-backdrop API */
+    .modal_zombie { background: var(--grad-modal); border: 1px solid var(--c-border-strong); border-radius: 16px; box-shadow: 0 40px 120px var(--glow-strong), inset 0 0 0 1px var(--glow-strong); }
+    .modal-content { background: transparent; border: none; border-radius: 12px; padding: 24px; max-width: 720px; width: 90%; max-height: 80vh; overflow-y: auto; }
+
+    /* Heartbeat pulse + stale borders */
+    @keyframes pulse-green { 0%{ box-shadow:0 0 0 0 var(--glow-strong);} 70%{ box-shadow:0 0 0 12px rgba(0,0,0,0);} 100%{ box-shadow:0 0 0 0 rgba(0,0,0,0);} }
+    .agent-card.pulse { animation: pulse-green 1s ease; }
+    .agent-stale-yellow { border-color: color-mix(in oklab, var(--warning) 75%, transparent) !important; }
+    .agent-stale-orange { border-color: color-mix(in oklab, var(--warning) 95%, var(--danger) 10%); }
+    .agent-stale-red    { border-color: var(--danger) !important; }
+
+    /* ECG v2 — realistic & smooth */
+    .ecg { position: relative; width: 100%; height: 42px; overflow: hidden; margin-top: 8px; background: linear-gradient(transparent 23px, rgba(255,255,255,.04) 23px, transparent 24px); }
+    .ecg-wrapper { position: absolute; top: 0; left: 0; height: 100%; width: 600px; display: flex; will-change: transform; animation: ecg-scroll linear infinite; }
+    @keyframes ecg-scroll { from { transform: translateX(0); } to { transform: translateX(-200px); } }
+    .ecg svg { width: 200px; height: 100%; flex-shrink: 0; }
+    .ecg path { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 6px currentColor); shape-rendering: geometricPrecision; }
+    .ecg.green { color: var(--ok); }
+    .ecg.yellow { color: var(--warning); }
+    .ecg.orange { color: color-mix(in oklab, var(--warning) 70%, var(--danger) 20%); }
+    .ecg.red { color: var(--danger); }
+    .ecg.flat .ecg-wrapper { animation: none; }
+    .ecg:not(.flat)::after { content:""; position: absolute; inset: 0; background: linear-gradient(0deg, transparent, rgba(255,255,255,.03), transparent); animation: ecg-flicker 2.3s ease-in-out infinite alternate; pointer-events: none; }
+    @keyframes ecg-flicker { from { opacity: .2; transform: translateY(0); } to { opacity: .35; transform: translateY(-0.5px); } }
+      /* === Console color refinements (match original vibe, tokenized) === */
+    .console-type { background: var(--c-chip-bg); border: 1px solid var(--c-border); color: var(--muted); }
+    .console-type.tx { background: var(--switch-on-bg); color: var(--ok); border-color: color-mix(in oklab, var(--ok) 60%, transparent); }
+    .console-type.rx { background: color-mix(in oklab, var(--accent-2) 18%, var(--c-panel)); color: var(--accent-2); border-color: color-mix(in oklab, var(--accent-2) 60%, transparent); }
+    .console-line:has(.console-type.tx) .console-content { color: var(--ok); }
+    .console-line:has(.console-type.rx) .console-content { color: var(--accent-2); }
+    .console-output { background: var(--grad-console); border: 1px solid var(--c-border-strong); }
+
+    /* === Mobile layout tweaks === */
+    .toolbar { flex-wrap: wrap; gap: 8px; }
+    .quickbar { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; padding-bottom: 4px; }
+    .term-controls { flex-wrap: wrap; }
+    .term-controls .input, .term-controls .select { min-width: 140px; }
+
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr !important; }
+      #currentPath { display: none; }
+      .term-controls { gap: 8px; }
+      .term-controls .input { flex: 1 1 100%; }
+      .term-controls .select { flex: 1 1 45%; }
+      .term-controls .btn { flex: 1 1 45%; }
+    }
+      /* === Console levels (INFO/WARNING/ERROR/SUCCESS) === */
+    .console-type.info    { background: color-mix(in oklab, var(--accent-2) 14%, var(--c-panel)); color: var(--accent-2); border-color: color-mix(in oklab, var(--accent-2) 60%, transparent); }
+    .console-type.warning { background: color-mix(in oklab, var(--warning) 12%, var(--c-panel));  color: var(--warning);  border-color: color-mix(in oklab, var(--warning) 60%, transparent); }
+    .console-type.error   { background: color-mix(in oklab, var(--danger) 12%, var(--c-panel));   color: var(--danger);   border-color: color-mix(in oklab, var(--danger) 60%, transparent); }
+    .console-type.success { background: color-mix(in oklab, var(--ok) 12%, var(--c-panel));       color: var(--ok);       border-color: color-mix(in oklab, var(--ok) 60%, transparent); }
+    .console-line:has(.console-type.info)    .console-content { color: var(--accent-2); }
+    .console-line:has(.console-type.warning) .console-content { color: var(--warning); }
+    .console-line:has(.console-type.error)   .console-content { color: var(--danger); }
+    .console-line:has(.console-type.success) .console-content { color: var(--ok); }
+      /* === System Logs styled like console (background, pills) === */
+    #logsOutput{background:var(--grad-console)!important;border:1px solid var(--c-border-strong);border-radius:10px;color:var(--ink);padding:12px}
+    #logsOutput .log-line{display:flex;align-items:flex-start;gap:8px;font:var(--font-mono);margin:4px 0}
+    #logsOutput .log-time{color:var(--muted);font-size:11px}
+    #logsOutput .log-text{flex:1;word-break:break-word}
+    #logsOutput .console-type{padding:2px 6px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--c-border);background:var(--c-chip-bg)}
+
+    /* reuse existing level variants for console-type (info/warning/error/success) */
+
+    /* === Compact metrics === */
+    .stats-grid{gap:8px!important;margin-bottom:14px}
+    .stats-grid .panel{padding:10px 12px}
+    .stats-grid .metric-value{font-size:22px}
+    .stats-grid .metric-label{font-size:11px;margin-top:2px}
+    @media (max-width:768px){.stats-grid{gap:8px!important}}
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidehead">
+      <div class="spacer"></div>
+      <button class="btn" id="hideSidebar"><span class="icon">⟵</span><span class="label">Hide</span></button>
+    </div>
+          <!-- Stats -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 stats-grid">
+        <div class="panel p-4 metric">
+          <div class="metric-value" id="statTotal">0</div>
+          <div class="metric-label">Total Agents</div>
+        </div>
+        <div class="panel p-4 metric">
+          <div class="metric-value" id="statOnline">0</div>
+          <div class="metric-label">Online</div>
+        </div>
+        <div class="panel p-4 metric">
+          <div class="metric-value" id="statCPU">0%</div>
+          <div class="metric-label">Avg CPU</div>
+        </div>
+        <div class="panel p-4 metric">
+          <div class="metric-value" id="statRAM">0%</div>
+          <div class="metric-label">Avg RAM</div>
+        </div>
+        <div class="panel p-4 metric">
+          <div class="metric-value" id="statPort">-</div>
+          <div class="metric-label">C2 Port</div>
+        </div>
+      </div>
+
+
+    <div class="sidecontent" id="sidecontent">
+      <div class="content-section" id="logs-section-content">
+ <div class="flex items-center gap-3 toolbar">
+          <button id="btnRefresh" class="btn btn-icon" title="Refresh"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+          <button id="btnGenerateClient" class="btn"><i data-lucide="plus-circle" class="w-4 h-4"></i>Generate Client</button>
+          <button id="btnSettings" class="btn"><i data-lucide="settings" class="w-4 h-4"></i>Settings</button>
+          <button id="btnStart" class="btn btn-primary"><i data-lucide="play" class="w-4 h-4"></i>Start C2</button>
+          <button id="btnStop" class="btn btn-danger"><i data-lucide="square" class="w-4 h-4"></i>Stop C2</button>
+          <button id="btnCheckStale" class="btn"><i data-lucide="search" class="w-4 h-4"></i>Check Stale</button>
+          <button id="btnPurgeStale" class="btn btn-danger"><i data-lucide="trash-2" class="w-4 h-4"></i>Purge Stale</button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </aside>
+
+
+  <main class="main" id="main">
+
+    <!-- Toasts -->
+    <div class="toasts" id="toasts"></div>
+
+    <!-- Header (kept custom; avoids global .topbar to prevent overlap with injected topbar) -->
+    <header class="border-b border-gray-800 bg-black/50 backdrop-blur sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <h1 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="activity" class="w-5 h-5 text-green-500"></i>
+            Zombieland C2
+          </h1>
+          <span id="c2Status" class="pill offline">Offline</span>
+        </div>
+       
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-4">
+
+
+      <!-- Main Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Terminal / Console -->
+        <div class="lg:col-span-2">
+          <div class="panel p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-semibold flex items-center gap-2"><i data-lucide="terminal" class="w-4 h-4"></i>Console</h2>
+              <div class="flex items-center gap-2">
+                <div class="flex gap-1 quickbar" id="quickCommands">
+                  <button class="quick-cmd" data-cmd="sysinfo">sysinfo</button>
+                  <button class="quick-cmd" data-cmd="pwd">pwd</button>
+                  <button class="quick-cmd" data-cmd="ls -la">ls -la</button>
+                  <button class="quick-cmd" data-cmd="ps aux">ps</button>
+                  <button class="quick-cmd" data-cmd="ip a">network</button>
+                </div>
+                <button id="btnClearConsole" class="btn btn-icon" title="Clear"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+
+            <div class="term">
+              <div class="console-output" id="consoleOutput"></div>
+              <div class="border-t border-gray-800 p-2 flex gap-2 items-center term-controls">
+                <span id="currentPath" class="text-xs text-gray-500 px-2">~</span>
+                <input id="cmdInput" type="text" class="input flex-1" placeholder="Enter command..." />
+                <select id="targetSelect" class="select">
+                  <option value="broadcast">All Agents</option>
+                </select>
+                <button id="btnSend" class="btn btn-primary">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agents Panel -->
+        <div class="panel p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold flex items-center gap-2"><i data-lucide="users" class="w-4 h-4"></i>Agents (<span id="agentCount">0</span>)</h2>
+            <div class="flex gap-1">
+              <button id="btnSelectAll" class="btn btn-icon" title="Select All"><i data-lucide="check-square" class="w-4 h-4"></i></button>
+              <button id="btnDeselectAll" class="btn btn-icon" title="Deselect All"><i data-lucide="square" class="w-4 h-4"></i></button>
+            </div>
+          </div>
+          <div class="space-y-2" id="agentsList"></div>
+        </div>
+      </div>
+
+      <!-- Logs Panel -->
+      <div class="panel p-4 mt-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-semibold flex items-center gap-2"><i data-lucide="file-text" class="w-4 h-4"></i>System Logs</h2>
+          <button id="btnClearLogs" class="btn btn-icon" title="Clear Logs"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        </div>
+        <div class="bg-black rounded p-3 h-48 overflow-y-auto font-mono text-xs" id="logsOutput"></div>
+      </div>
+    </main>
+
+    <!-- Generate Client Modal -->
+    <div id="generateModal" class="modal_zombie" style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; z-index:1000;">
+      <div class="modal-content panel">
+        <h3 class="text-lg font-bold mb-4">Generate New Client</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm mb-1">Client ID</label>
+            <input id="clientId" type="text" class="input w-full" placeholder="zombie01" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Platform</label>
+            <select id="clientPlatform" class="select w-full">
+              <option value="linux">Linux</option>
+              <option value="windows">Windows</option>
+              <option value="macos">macOS</option>
+              <option value="universal">Universal (Python)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Lab Credentials (Optional)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <input id="labUser" type="text" class="input" placeholder="Username" />
+              <input id="labPass" type="password" class="input" placeholder="Password" />
+            </div>
+          </div>
+          <div class="border-t border-gray-800 pt-4">
+            <h4 class="font-semibold mb-2">Deploy Options</h4>
+            <div class="space-y-2">
+              <label class="flex items-center gap-2"><input type="checkbox" id="deploySSH" /><span>Deploy via SSH</span></label>
+              <div id="sshOptions" class="hidden space-y-2 ml-6">
+                <input id="sshHost" type="text" class="input w-full" placeholder="SSH Host" />
+                <input id="sshUser" type="text" class="input w-full" placeholder="SSH Username" />
+                <input id="sshPass" type="password" class="input w-full" placeholder="SSH Password" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button id="btnCancelGenerate" class="btn">Cancel</button>
+          <button id="btnConfirmGenerate" class="btn btn-primary">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- File Browser Modal -->
+    <div id="fileBrowserModal" class="modal_zombie" style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; z-index:1000;">
+      <div class="modal-content panel">
+        <h3 class="text-lg font-bold mb-4">File Browser - <span id="browserAgent"></span></h3>
+        <div class="mb-3">
+          <div class="flex gap-2">
+            <input id="browserPath" type="text" class="input flex-1" value="/" />
+            <button id="btnBrowse" class="btn">Browse</button>
+            <button id="btnUploadFile" class="btn"><i data-lucide="upload" class="w-4 h-4"></i>Upload</button>
+          </div>
+        </div>
+        <div class="bg-black rounded p-3 h-64 overflow-y-auto" id="fileList"></div>
+        <div class="flex justify-end mt-4">
+          <button id="btnCloseBrowser" class="btn">Close</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+  (() => {
+    const $  = (s) => document.querySelector(s);
+    const $$ = (s) => Array.from(document.querySelectorAll(s));
+    const on = (sel, type, handler) => { const el = document.querySelector(sel); if (!el) { console.warn('Missing element for listener:', sel); return; } el.addEventListener(type, handler); };
+
+    // --- Presence thresholds ---
+    const PRESENCE = { GRACE: 30000, WARN: 60000, ORANGE: 100000, RED: 160000 };
+    function computePresence(agent, now = Date.now()) {
+      if (!agent?.last_seen) return { status:'offline', delta:null, color:'red', bpm:0 };
+      const last = typeof agent.last_seen === 'string' ? Date.parse(agent.last_seen) : agent.last_seen;
+      const delta = now - last; let status = 'offline', color = 'red', bpm = 0;
+      if (delta < PRESENCE.GRACE) { status='online'; color='green'; bpm=55; }
+      else if (delta < PRESENCE.WARN) { status='online'; color='green'; bpm=40; }
+      else if (delta < PRESENCE.ORANGE) { status='idle'; color='yellow'; bpm=22; }
+      else if (delta < PRESENCE.RED) { status='idle'; color='orange'; bpm=12; }
+      else { status='offline'; color='red'; bpm=0; }
+      return { status, delta, color, bpm };
+    }
+
+    // State
+    const state = { c2Running: false, c2Port: null, agents: new Map(), selectedAgents: new Set(), currentPaths: new Map(), consoleHistory: [], historyIndex: -1, sse: null };
+
+    // Toast: keep name but delegate to Bjorn if available to avoid conflicts
+    function toast(message, type = 'info') {
+      if (window.Bjorn?.toast) { window.Bjorn.toast(message); return; }
+      const toastEl = document.createElement('div');
+      toastEl.className = `toast ${type}`;
+      const icons = { info:'info', success:'check-circle', error:'alert-circle', warning:'alert-triangle' };
+      toastEl.innerHTML = `<i data-lucide="${icons[type]}" class="w-5 h-5"></i><div>${message}</div>`;
+      $('#toasts').appendChild(toastEl);
+      window.lucide.createIcons();
+      setTimeout(() => toastEl.remove(), 5000);
+    }
+
+    // Console log
+    function consoleLog(type, message, target = null) {
+      const output = $('#consoleOutput');
+      const line = document.createElement('div'); line.className = 'console-line';
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      if (typeof message === 'object') message = JSON.stringify(message, null, 2);
+      message = String(message);
+      const isMultiline = /\r?\n/.test(message);
+      const formattedMessage = isMultiline ? `<pre>${message}</pre>` : message;
+      line.innerHTML = `
+        <span class="console-time">${time}</span>
+        <span class="console-type ${String(type).toLowerCase()}">${type}</span>
+        ${target ? `<span class="text-gray-500">[${target}]</span>` : ''}
+        <div class="console-content">${formattedMessage}</div>
+      `;
+      output.appendChild(line); output.scrollTop = output.scrollHeight;
+    }
+
+    // System log (simple)
+    function systemLog(level, message) {
+      const logs = $('#logsOutput');
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const levelSafe = (level || 'info').toLowerCase();
+      logs.innerHTML += `<div class="log-line"><span class="log-time">${time}</span> <span class="console-type ${levelSafe}">${levelSafe.toUpperCase()}</span> <div class="log-text">${message}</div></div>`;
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    // Front dedupe by hostname
+    function dedupeAgents(arrayOfAgents) {
+      const byHost = new Map();
+      arrayOfAgents.forEach(a => {
+        const key = (a.hostname || '').trim().toLowerCase() || a.id;
+        const prev = byHost.get(key);
+        const last = typeof a.last_seen === 'string' ? Date.parse(a.last_seen) : a.last_seen || 0;
+        const prevLast = prev ? (typeof prev.last_seen === 'string' ? Date.parse(prev.last_seen) : prev.last_seen || 0) : -1;
+        if (!prev || last >= prevLast) byHost.set(key, a);
+      });
+      const HIDE = 10 * 60 * 1000; const now = Date.now();
+      return Array.from(byHost.values()).filter(a => {
+        const last = typeof a.last_seen === 'string' ? Date.parse(a.last_seen) : a.last_seen || 0;
+        return (now - last) < HIDE || computePresence(a, now).status !== 'offline';
+      });
+    }
+
+    // Stats
+    function updateStats() {
+      const now = Date.now();
+      const agents = Array.from(state.agents.values());
+      const online = agents.filter(a => computePresence(a, now).status === 'online');
+      $('#statTotal').textContent = agents.length;
+      $('#statOnline').textContent = online.length;
+      $('#agentCount').textContent = `${online.length}/${agents.length}`;
+      const avgCPU = online.length ? Math.round(online.reduce((s, a) => s + (a.cpu || 0), 0) / online.length) : 0;
+      const avgRAM = online.length ? Math.round(online.reduce((s, a) => s + (a.mem || 0), 0) / online.length) : 0;
+      $('#statCPU').textContent = avgCPU + '%';
+      $('#statRAM').textContent = avgRAM + '%';
+      $('#statPort').textContent = state.c2Port || '-';
+      const statusEl = $('#c2Status');
+      if (state.c2Running) { statusEl.className = 'pill online';  statusEl.textContent = 'Online'; }
+      else { statusEl.className = 'pill offline'; statusEl.textContent = 'Offline'; }
+    }
+
+    // ECG template
+    const ECG_PQRST = "M0,21 L15,21 L18,19 L20,21 L30,21 L32,23 L34,21 L40,21 L42,12 L44,30 L46,8 L48,35 L50,21 L60,21 L65,21 L70,19 L72,21 L85,21 L90,21 L100,21 L110,21 L115,19 L118,21 L130,21 L132,23 L134,21 L140,21 L142,12 L144,30 L146,8 L148,35 L150,21 L160,21 L170,21 L180,21 L190,21 L200,21";
+    const ECG_FLAT = "M0,21 L200,21";
+    const ecgTemplate = (id, colorClass, bpm) => {
+      const dur = bpm > 0 ? (72 / bpm) : 3.2;
+      const waveform = bpm > 0 ? ECG_PQRST : ECG_FLAT;
+      return `
+        <div class="ecg ${colorClass} ${bpm === 0 ? 'flat' : ''}" id="ecg-${id}">
+          <div class="ecg-wrapper" style="animation-duration: ${dur}s">
+            <svg viewBox="0 0 200 42" preserveAspectRatio="none"><path d="${waveform}" /></svg>
+            <svg viewBox="0 0 200 42" preserveAspectRatio="none"><path d="${waveform}" /></svg>
+            <svg viewBox="0 0 200 42" preserveAspectRatio="none"><path d="${waveform}" /></svg>
+          </div>
+        </div>`;
+    };
+
+    // Render agents
+    function renderAgents() {
+      const list = $('#agentsList');
+      const targetSelect = $('#targetSelect');
+      list.innerHTML = ''; targetSelect.innerHTML = '<option value="broadcast">All Agents</option>';
+      const now = Date.now();
+      const agents = dedupeAgents(Array.from(state.agents.values())).sort((a, b) => {
+        const pa = computePresence(a, now), pb = computePresence(b, now);
+        const rank = { online:0, idle:1, offline:2 };
+        if (rank[pa.status] !== rank[pb.status]) return rank[pa.status] - rank[pb.status];
+        return (a.hostname || a.id).localeCompare(b.hostname || b.id);
+      });
+      agents.forEach((agent) => {
+        const id = agent.id; const pres = computePresence(agent, now);
+        const os = (agent.os || '').toLowerCase(); let osIcon = 'monitor';
+        if (os.includes('windows')) osIcon = 'hard-drive'; else if (os.includes('linux')) osIcon = 'terminal'; else if (os.includes('darwin') || os.includes('mac')) osIcon = 'command';
+        const card = document.createElement('div');
+        card.className = `agent-card p-3 ${state.selectedAgents.has(id) ? 'selected' : ''}`; card.dataset.id = id;
+        if (pres.status === 'idle') { if (pres.color === 'yellow') card.classList.add('agent-stale-yellow'); if (pres.color === 'orange') card.classList.add('agent-stale-orange'); }
+        else if (pres.status === 'offline') { card.classList.add('agent-stale-red'); }
+        if (pres.delta !== null && pres.delta < PRESENCE.GRACE) card.classList.add('pulse');
+        const ecgHtml = ecgTemplate(id, pres.color, pres.bpm);
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" class="agent-checkbox" ${state.selectedAgents.has(id) ? 'checked' : ''} />
+              <i data-lucide="${osIcon}" class="os-icon"></i>
+              <div>
+                <div class="font-semibold" title="${id}">${id}</div>
+                <div class="text-xs text-gray-500 truncate" title="${agent.hostname || ''}">${agent.hostname || 'Unknown'}</div>
+              </div>
+            </div>
+            <span class="pill ${pres.status}">${pres.status}</span>
+          </div>
+          <div class="text-xs text-gray-400 space-y-1">
+            <div>OS: ${agent.os || 'Unknown'}</div>
+            <div>IP: ${agent.ip || 'N/A'}</div>
+            <div class="flex justify-between"><span>CPU: ${agent.cpu || 0}%</span><span>RAM: ${agent.mem || 0}%</span></div>
+            ${state.currentPaths.has(id) ? `<div class="text-green-400">Path: ${state.currentPaths.get(id)}</div>` : ''}
+          </div>
+          <div class="ecg-counter" id="ecg-counter-${id}">${pres.delta ? Math.floor(pres.delta/1000)+'s' : '0s'}</div>
+          ${ecgHtml}
+          <div class="flex gap-2 mt-3">
+            <button class="btn btn-icon btn-browse" title="Browse Files"><i data-lucide="folder" class="w-4 h-4"></i></button>
+            <button class="btn btn-icon btn-shell" title="Shell"><i data-lucide="terminal" class="w-4 h-4"></i></button>
+            <button class="btn btn-icon btn-remove" title="Remove"><i data-lucide="x" class="w-4 h-4"></i></button>
+          </div>`;
+        list.appendChild(card);
+        if (pres.status === 'online') { const option = document.createElement('option'); option.value = id; option.textContent = id; targetSelect.appendChild(option); }
+        agent._lastPresence = agent._lastPresence || pres.status;
+      });
+      window.lucide.createIcons(); updateStats();
+    }
+
+    // API helper
+    async function api(method, endpoint, data = null) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+      if (data) opts.body = JSON.stringify(data);
+      const response = await fetch(endpoint, opts);
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      return response.json();
+    }
+
+    // Refresh state (non‑destructive, SSE‑aware)
+    state.emptyAgentsStrikes = 0; state.maxEmptyStrikes = 3; state.sseHealthy = false;
+    function maxDate(a, b) { if (a == null) return b ?? null; if (b == null) return a ?? null; return (a > b) ? a : b; }
+    async function refreshState() {
+      try {
+        if (state.sseHealthy && state.sse?.readyState === 1) return;
+        const status = await api('GET', '/c2/status'); state.c2Running = status.running; state.c2Port = status.port;
+        const apiAgents = await api('GET', '/c2/agents'); const seenThisPoll = new Set();
+        if (!Array.isArray(apiAgents) || apiAgents.length === 0) { state.emptyAgentsStrikes++; }
+        else {
+          state.emptyAgentsStrikes = 0;
+          for (const a of apiAgents) {
+            const id = a.id || a.agent_id; if (!id) continue; seenThisPoll.add(id);
+            let apiLast = a.last_seen; if (typeof apiLast === 'string') { const t = Date.parse(apiLast); if (!Number.isNaN(t)) apiLast = t; }
+            const existing = state.agents.get(id) || {}; const reconciledLastSeen = maxDate(existing.last_seen ?? null, apiLast ?? null);
+            state.agents.set(id, { ...existing, ...a, id, last_seen: reconciledLastSeen ?? existing.last_seen ?? apiLast ?? null });
+          }
+        }
+        if (state.emptyAgentsStrikes >= state.maxEmptyStrikes) { systemLog('warning', 'API /c2/agents empty for a while; keeping local state.'); }
+        renderAgents();
+      } catch (error) { console.error('Failed to refresh state:', error); }
+    }
+
+    // SSE
+    function connectSSE() {
+      if (state.sse) state.sse.close(); state.sse = new EventSource('/c2/events');
+      state.sse.onopen = () => { state.sseHealthy = true; systemLog('info', 'Connected to event stream'); };
+      state.sse.onerror = () => { state.sseHealthy = false; systemLog('error', 'Event stream connection lost'); };
+      state.sse.addEventListener('status', (e) => { const data = JSON.parse(e.data); state.c2Running = data.running; state.c2Port = data.port; updateStats(); });
+      state.sse.addEventListener('telemetry', (e) => {
+        const data = JSON.parse(e.data); const now = Date.now();
+        const existing = state.agents.get(data.id); const before = existing ? computePresence(existing, now).status : 'offline';
+        const agent = Object.assign({}, existing || {}, data); agent.last_seen = now; state.agents.set(agent.id, agent);
+        const after = computePresence(agent, now).status;
+        if (before !== after) {
+          if (after === 'online') systemLog('success', `Client ${agent.hostname || agent.id} connected`);
+          else if (after === 'idle') systemLog('warning', `Client ${agent.hostname || agent.id} became idle`);
+          else if (after === 'offline') systemLog('warning', `Client ${agent.hostname || agent.id} disconnected`);
+        }
+        const counter = document.querySelector(`#ecg-counter-${agent.id}`); if (counter) counter.textContent = '0s';
+        const card = document.querySelector(`.agent-card[data-id="${agent.id}"]`);
+        if (card) { card.classList.add('pulse'); setTimeout(() => card.classList.remove('pulse'), 600); }
+        renderAgents();
+      });
+      state.sse.addEventListener('log', (e) => { const d = JSON.parse(e.data); systemLog(d.level || 'info', d.text || ''); });
+      state.sse.addEventListener('console', (e) => { const d = JSON.parse(e.data); consoleLog(d.kind || 'RX', d.text || '', d.target || null); });
+    }
+
+    // Ticker: update counters + ECG + status
+    setInterval(() => {
+      const now = Date.now();
+      state.agents.forEach((agent, id) => {
+        const pres = computePresence(agent, now);
+        const counter = document.querySelector(`#ecg-counter-${id}`);
+        if (counter && pres.delta !== null) counter.textContent = Math.floor(pres.delta / 1000) + 's';
+        const ecgEl = document.querySelector(`#ecg-${id}`);
+        if (ecgEl) {
+          ecgEl.classList.remove('green', 'yellow', 'orange', 'red', 'flat');
+          ecgEl.classList.add(pres.color); if (pres.bpm === 0) ecgEl.classList.add('flat');
+          const wrapper = ecgEl.querySelector('.ecg-wrapper'); const paths = ecgEl.querySelectorAll('path');
+          const targetWave = pres.bpm > 0 ? ECG_PQRST : ECG_FLAT; paths.forEach(p => { if (p.getAttribute('d') !== targetWave) p.setAttribute('d', targetWave); });
+          if (wrapper) { const dur = pres.bpm > 0 ? (72 / pres.bpm) : 3.2; if (wrapper.style.animationDuration !== `${dur}s`) { wrapper.style.animationDuration = `${dur}s`; requestAnimationFrame(() => { wrapper.style.transform = ''; }); } }
+        }
+        if (agent._lastPresence !== pres.status) {
+          if (pres.status === 'offline') systemLog('error', `Client ${agent.hostname || id} disconnected`);
+          else if (pres.status === 'online') systemLog('success', `Client ${agent.hostname || id} connected`);
+          else if (pres.status === 'idle') systemLog('warning', `Client ${agent.hostname || id} became idle`);
+          agent._lastPresence = pres.status;
+        }
+        const card = document.querySelector(`.agent-card[data-id="${id}"]`);
+        if (card) {
+          const pill = card.querySelector('.pill'); if (pill) { pill.classList.remove('online', 'idle', 'offline'); pill.classList.add(pres.status); pill.textContent = pres.status; }
+          card.classList.remove('agent-stale-yellow', 'agent-stale-orange', 'agent-stale-red');
+          if (pres.status === 'idle') { if (pres.color === 'yellow') card.classList.add('agent-stale-yellow'); if (pres.color === 'orange') card.classList.add('agent-stale-orange'); }
+          else if (pres.status === 'offline') { card.classList.add('agent-stale-red'); }
+        }
+      });
+      updateStats();
+    }, 1000);
+
+    // Commands
+    async function sendCommand(command, targets = null) {
+      if (!command) return;
+      try {
+        if (!targets || targets.length === 0) {
+          consoleLog('TX', command, 'ALL'); await api('POST', '/c2/broadcast', { command }); toast('Command broadcasted', 'success');
+        } else {
+          consoleLog('TX', command, targets.join(',')); await api('POST', '/c2/command', { command, targets }); toast(`Command sent to ${targets.length} agent(s)`, 'success');
+        }
+        state.consoleHistory.push(command); state.historyIndex = state.consoleHistory.length;
+      } catch (error) { toast('Failed to send command', 'error'); systemLog('error', error.message); }
+    }
+
+    // Handlers
+    on('#btnCheckStale', 'click', async () => { try { const result = await api('GET', '/c2/stale_agents?threshold=300'); toast(`${result.count} stale agent(s) inactive >5min`, 'info'); systemLog('info', `Stale check: ${result.count} inactive >5min`); if (result.agents?.length) console.log('Stale agents:', result.agents); } catch (err) { toast('Failed to fetch stale agents', 'error'); systemLog('error', err.message); } });
+    on('#btnPurgeStale', 'click', async () => { if (!confirm('Purge all agents inactive >24h?')) return; try { const result = await api('POST', '/c2/purge_agents', { threshold: 86400 }); toast(`${result.purged} agent(s) purged (>24h)`, 'warning'); systemLog('warning', `${result.purged} agents purged (>24h)`); await refreshState(); } catch (err) { toast('Failed to purge stale agents', 'error'); systemLog('error', err.message); } });
+    on('#btnStart', 'click', async () => { try { const port = prompt('Enter C2 port:', '5555'); if (!port) return; await api('POST', '/c2/start', { port: parseInt(port) }); toast('C2 server started', 'success'); await refreshState(); } catch { toast('Failed to start C2', 'error'); } });
+    on('#btnStop', 'click', async () => { try { await api('POST', '/c2/stop'); toast('C2 server stopped', 'warning'); await refreshState(); } catch { toast('Failed to stop C2', 'error'); } });
+    on('#btnRefresh', 'click', () => { refreshState(); toast('Refreshed', 'info'); });
+    on('#btnSend', 'click', () => { const input = $('#cmdInput'); const command = input.value.trim(); if (!command) return; const target = $('#targetSelect').value; if (target === 'broadcast') sendCommand(command); else sendCommand(command, [target]); input.value = ''; });
+    on('#cmdInput', 'keydown', (e) => {
+      if (e.key === 'Enter') $('#btnSend')?.click();
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (state.historyIndex > 0) { state.historyIndex--; e.target.value = state.consoleHistory[state.historyIndex]; } }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); if (state.historyIndex < state.consoleHistory.length - 1) { state.historyIndex++; e.target.value = state.consoleHistory[state.historyIndex]; } else { state.historyIndex = state.consoleHistory.length; e.target.value = ''; } }
+    });
+    on('#btnClearConsole', 'click', () => { $('#consoleOutput').innerHTML = ''; toast('Console cleared', 'info'); });
+    on('#btnClearLogs', 'click', () => { $('#logsOutput').innerHTML = ''; });
+    on('#btnSelectAll', 'click', () => { state.agents.forEach((_, id) => state.selectedAgents.add(id)); renderAgents(); });
+    on('#btnDeselectAll', 'click', () => { state.selectedAgents.clear(); renderAgents(); });
+    on('#quickCommands', 'click', (e) => { if (e.target.classList.contains('quick-cmd')) { $('#cmdInput').value = e.target.dataset.cmd; $('#cmdInput').focus(); } });
+
+    on('#agentsList', 'click', async (e) => {
+      const card = e.target.closest('.agent-card'); if (!card) return; const agentId = card.dataset.id;
+      if (e.target.type === 'checkbox') { if (e.target.checked) state.selectedAgents.add(agentId); else state.selectedAgents.delete(agentId); renderAgents(); }
+      else if (e.target.closest('.btn-browse')) { openFileBrowser(agentId); }
+      else if (e.target.closest('.btn-shell')) { const sel = $('#targetSelect'); if (sel) sel.value = agentId; $('#cmdInput')?.focus(); }
+      else if (e.target.closest('.btn-remove')) {
+        if (confirm(`Remove agent ${agentId}?`)) {
+          try { await api('POST', '/c2/remove_client', { client_id: agentId }); state.agents.delete(agentId); state.selectedAgents.delete(agentId); renderAgents(); toast(`Agent ${agentId} removed from DB`, 'warning'); systemLog('warning', `Agent ${agentId} removed from DB`); }
+          catch (err) { toast(`Failed to remove agent ${agentId}`, 'error'); systemLog('error', err.message); }
+        }
+      }
+    });
+
+    // Generate client modal
+    on('#btnGenerateClient', 'click', () => { $('#generateModal')?.style.setProperty('display','flex'); });
+    on('#btnCancelGenerate', 'click', () => { $('#generateModal')?.style.setProperty('display','none'); });
+    on('#deploySSH', 'change', (e) => { $('#sshOptions')?.classList.toggle('hidden', !e.target.checked); });
+    on('#btnConfirmGenerate', 'click', async () => {
+      const clientId = $('#clientId')?.value.trim() || `zombie_${Date.now()}`;
+      const platform = $('#clientPlatform')?.value;
+      const labUser  = $('#labUser')?.value.trim() || 'testuser';
+      const labPass  = $('#labPass')?.value.trim() || 'testpass';
+      try {
+        const result = await api('POST', '/c2/generate_client', { client_id: clientId, platform, lab_user: labUser, lab_password: labPass });
+        toast(`Client ${clientId} generated successfully`, 'success'); systemLog('success', `Generated client: ${clientId} (${platform})`);
+        const deployChk = $('#deploySSH');
+        if (deployChk?.checked) {
+          const sshHost = $('#sshHost')?.value.trim(); const sshUser = $('#sshUser')?.value.trim(); const sshPass = $('#sshPass')?.value.trim();
+          if (sshHost && sshUser && sshPass) {
+            await api('POST', '/c2/deploy', { client_id: clientId, ssh_host: sshHost, ssh_user: sshUser, ssh_pass: sshPass, lab_user: labUser, lab_password: labPass });
+            toast(`Client deployed to ${sshHost}`, 'success'); systemLog('success', `Deployed ${clientId} to ${sshHost}`);
+          }
+        }
+        $('#generateModal')?.style.setProperty('display','none');
+        if (result.filename) { const a = document.createElement('a'); a.href = `/c2/download_client/${result.filename}`; a.download = result.filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+      } catch (error) { toast('Failed to generate client', 'error'); systemLog('error', error.message); }
+    });
+
+    // File browser
+    function openFileBrowser(agentId) { $('#browserAgent').textContent = agentId; $('#browserPath').value = state.currentPaths.get(agentId) || '/'; $('#fileBrowserModal').style.display = 'flex'; $('#fileBrowserModal').dataset.agentId = agentId; browseDirectory(); }
+    async function browseDirectory() { const modal = $('#fileBrowserModal'); const agentId = modal?.dataset.agentId; const path = $('#browserPath')?.value || '/'; try { await api('POST', '/c2/command', { command: `ls -la ${path}`, targets: [agentId] }); } catch { toast('Failed to browse directory', 'error'); } }
+    on('#btnBrowse', 'click', browseDirectory);
+    on('#btnCloseBrowser', 'click', () => { $('#fileBrowserModal')?.style.setProperty('display','none'); });
+    on('#btnUploadFile', 'click', () => { const input = document.createElement('input'); input.type = 'file'; input.onchange = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (event) => { const base64 = btoa(event.target.result); const agentId = $('#fileBrowserModal')?.dataset.agentId; const path = $('#browserPath')?.value || '/'; const filePath = `${path}/${file.name}`; try { await api('POST', '/c2/command', { command: `upload ${filePath} ${base64}`, targets: [agentId] }); toast(`File uploaded: ${file.name}`, 'success'); browseDirectory(); } catch { toast('Failed to upload file', 'error'); } }; reader.readAsBinaryString(file); }; input.click(); });
+
+    // Init
+    window.addEventListener('load', async () => { window.lucide.createIcons(); await refreshState(); connectSSE(); setInterval(refreshState, 10000); });
+  })();
+  </script>
+</body>
+</html>

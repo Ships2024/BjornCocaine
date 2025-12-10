@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Bjorn – Action Scheduler</title>
+  <link rel="icon" href="/web/images/favicon.ico" />
+  <link rel="stylesheet" href="/web/css/global.css" />
+  <script src="/web/js/global.js" defer></script>
+
+  <style>
+    /* ================= Theme via global.css tokens ================= */
+    /* On suppose que global.css expose: --bg, --panel, --c-panel, --c-border, --c-border-strong, --ink, --muted,
+       --shadow, --grad-bg-1, --grad-bg-2, --h-topbar, etc. */
+    html, body { height: 100%; margin: 0; color: var(--ink); background: var(--grad-bg-1), var(--grad-bg-2), var(--bg); }
+
+    /* ---- Stickies (top offset = topbar + 5px) ---- */
+    .toolbar-top{ position: sticky; top: calc(var(--h-topbar, 0px) + 5px); z-index: 60; }
+    .controls{
+      position: sticky; top: 1px; z-index: 50;
+      display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+      padding:.6rem .8rem;
+      background: color-mix(in oklab, var(--panel) 92%, transparent);
+      border: 1px solid var(--c-border-strong);
+      border-radius: 14px;
+      margin: .6rem .6rem 0 .6rem;
+      box-shadow: var(--shadow);
+      backdrop-filter: saturate(1.05) blur(6px);
+    }
+
+    /* ---- Controls (pills + input) ---- */
+    .pill{
+      background: var(--panel);
+      border: 1px solid var(--c-border-strong);
+      color: var(--ink);
+      border-radius: 999px;
+      padding:.45rem .8rem;
+      cursor:pointer; user-select:none;
+      font-weight:700;
+      transition: transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+      box-shadow: var(--shadow);
+    }
+    .pill:hover{ transform: translateY(-1px); box-shadow: 0 10px 26px rgba(0,0,0,.35); }
+    .pill.active{
+      background: var(--grad-card, linear-gradient(135deg, color-mix(in oklab, var(--panel) 92%, transparent), color-mix(in oklab, var(--c-panel) 88%, transparent)));
+      box-shadow: inset 0 0 0 1px var(--c-border-strong), 0 6px 24px var(--glow-weak);
+    }
+    .controls input[type="text"]{
+      flex:1 1 260px; min-width:200px;
+      background: var(--c-panel);
+      border: 1px solid var(--c-border-strong);
+      color: var(--ink);
+      border-radius: 10px; padding:.5rem .7rem;
+      box-shadow: var(--shadow);
+      font-weight:700;
+      outline: none;
+    }
+    .controls input[type="text"]:focus-visible,
+    .pill:focus-visible{
+      outline: 2px solid var(--acid); outline-offset: 2px;
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--acid) 25%, transparent);
+    }
+    .stats{ flex-basis:100%; margin-left:0; text-align:center; color: var(--muted) }
+
+    /* ---- Board ---- */
+    .boardWrap{ height: calc(100vh - (var(--h-topbar, 0px) + 5px) - 56px - 52px); overflow:auto; }
+    .board{ display:flex; gap:14px; padding:14px; min-width:960px; }
+
+    .lane{
+      background: var(--panel);
+      border: 1px solid var(--c-border-strong);
+      border-radius: 16px;
+      width: 340px; display:flex; flex-direction:column; box-shadow: var(--shadow); min-height:0;
+    }
+    .laneHeader{
+      display:flex; align-items:center; gap:.6rem;
+      padding:.6rem .75rem; border-bottom: 1px solid var(--c-border-strong);
+      border-top-left-radius:16px; border-top-right-radius:16px;
+      background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 96%, transparent), color-mix(in oklab, var(--panel) 88%, transparent));
+      position: sticky; top: 0; z-index: 5;
+    }
+    .laneHeader .dot{ width:10px;height:10px;border-radius:999px;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset }
+    .laneHeader .count{ margin-left:auto; color: var(--muted); font-size:.9rem }
+    .laneBody{ padding:.6rem; display:flex; flex-direction:column; gap:.6rem; overflow:auto; min-height:0 }
+
+    /* ---- Status colors (garde l’esprit, passe par vars) ---- */
+    :root{
+      --c-upcoming:#9cc2ff;
+      --c-pending:#bbbbbb;
+      --c-running:#4aa8ff;
+      --c-success:#00d812;
+      --c-failed:#ff9800;
+      --c-expired:#e0c590;
+      --c-cancel:#d6a9d8;
+      --c-super:#b8a2ff;
+    }
+    .status-upcoming  .laneHeader .dot{ background: var(--c-upcoming); animation: dotPulse 1.6s ease-in-out infinite }
+    .status-pending   .laneHeader .dot{ background: var(--c-pending) }
+    .status-running   .laneHeader .dot{ background: var(--c-running); animation: dotPulse 1.6s ease-in-out infinite }
+    .status-success   .laneHeader .dot{ background: var(--c-success) }
+    .status-failed    .laneHeader .dot{ background: var(--c-failed) }
+    .status-expired   .laneHeader .dot{ background: var(--c-expired) }
+    .status-cancelled .laneHeader .dot{ background: var(--c-cancel) }
+    @keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(74,168,255,0)}50%{box-shadow:0 0 12px 3px rgba(74,168,255,.65)}}
+
+    /* ---- Cards ---- */
+    .card{
+      position:relative;
+      border: 1px solid var(--c-border-strong);
+      border-radius:12px;
+      padding:.7rem .75rem; box-shadow: var(--shadow);
+      display:flex; flex-direction:column; gap:.45rem;
+      overflow:hidden;
+      transition: transform .15s ease, box-shadow .25s ease, filter .2s ease, background .25s ease;
+      will-change: transform, box-shadow, filter;
+      background: var(--c-panel);
+    }
+    .card:hover{ transform: translateY(-1px); box-shadow: 0 16px 36px rgba(0,0,0,.4) }
+
+    .card .infoBtn{
+      position:absolute; top:6px; right:6px; z-index:3;
+      width:22px;height:22px; line-height:20px; font-weight:800; text-align:center;
+      border-radius:999px; border:1px solid var(--c-border-strong);
+      background: var(--panel); color: var(--c-upcoming);
+      cursor:pointer; user-select:none;
+    }
+    .card .infoBtn:hover{ filter: brightness(1.1) }
+
+    /* Backgrounds + halos (conservent la teinte) */
+    .card.status-upcoming{ background: color-mix(in oklab, var(--c-upcoming) 12%, var(--c-panel)); animation:breathe 2.6s ease-in-out infinite, halo 2.6s ease-in-out infinite; }
+    .card.status-pending { background: color-mix(in oklab, var(--c-pending) 10%, var(--c-panel));  animation:breathe 2.6s ease-in-out infinite, haloGray 2.8s ease-in-out infinite; }
+    .card.status-running { background: color-mix(in oklab, var(--c-running) 12%, var(--c-panel));  animation:pulse 1.8s ease-in-out infinite, haloBlue 2s ease-in-out infinite; }
+    .card.status-success { background: color-mix(in oklab, var(--c-success) 10%, var(--c-panel)); }
+    .card.status-failed  { background: color-mix(in oklab, var(--c-failed) 10%, var(--c-panel)); }
+    .card.status-expired { background: color-mix(in oklab, var(--c-expired) 10%, var(--c-panel)); }
+    .card.status-cancelled { background: color-mix(in oklab, var(--c-cancel) 10%, var(--c-panel)); }
+
+    .badge{ margin-left:auto; border-radius:999px; padding:.15rem .6rem; font-size:.75rem; font-weight:800; color:#0a0d10; }
+    .card.status-upcoming .badge{ background: var(--c-upcoming); }
+    .card.status-pending  .badge{ background: var(--c-pending); }
+    .card.status-running  .badge{ background: var(--c-running); }
+    .card.status-success  .badge{ background: var(--c-success); }
+    .card.status-failed   .badge{ background: var(--c-failed); }
+    .card.status-expired  .badge{ background: var(--c-expired); }
+    .card.status-cancelled .badge{ background: var(--c-cancel); }
+
+    /* Compact/Collapsed */
+    .card.collapsed .kv,
+    .card.collapsed .tags,
+    .card.collapsed .timer,
+    .card.collapsed .meta,
+    .card.collapsed .btns,
+    .card.collapsed .notice { display:none !important; }
+    .card.collapsed { gap:.25rem; padding:.4rem .5rem; }
+    .card.collapsed .actionIcon { width:80px;height:80px; }
+
+    .cardHeader{ display:flex; align-items:center; gap:.6rem }
+    .actionName{ font-weight:800; letter-spacing:.2px }
+    .actionIconWrap{ display:flex; align-items:center; justify-content:center; margin-right:8px; }
+    .actionIcon{ width:80px;height:80px;object-fit:contain;border-radius:6px; background: var(--panel); border:1px solid var(--c-border) }
+
+    .card.status-running .actionIcon { animation: pulseIcon 1.2s ease-in-out infinite; }
+    .card.status-pending .actionIcon { animation: swayIcon 1.8s ease-in-out infinite; }
+    .card.status-upcoming .actionIcon{ animation: blinkIcon 2s ease-in-out infinite; }
+    @keyframes pulseIcon { 0%,100% { transform: scale(1);} 50% { transform: scale(1.25);} }
+    @keyframes swayIcon  { 0%,100% { transform: rotate(0deg);} 25% { transform: rotate(-5deg);} 75% { transform: rotate(5deg);} }
+    @keyframes blinkIcon { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+
+    .kv{ display:flex; flex-wrap:wrap; gap:.45rem .8rem; font-size:.9rem }
+    .kv .k{ color: var(--muted) }
+    .tags{ display:flex; flex-wrap:wrap; gap:.35rem }
+    .tag{
+      background: var(--panel);
+      color: var(--ink);
+      border: 1px solid var(--c-border-strong);
+      padding:.15rem .45rem; border-radius:999px; font-size:.74rem;
+      box-shadow: var(--shadow);
+    }
+    .meta{ color: color-mix(in oklab, var(--ink) 76%, #9aa7b2); font-size:.82rem; display:flex; flex-wrap:wrap; gap:.5rem .8rem }
+    .btns{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.2rem }
+    .btn{ background: var(--panel); border:1px solid var(--c-border-strong); color: var(--ink); padding:.35rem .6rem; border-radius:8px; cursor:pointer }
+    .btn:hover{ filter: brightness(1.08) }
+    .btn.danger{ background: color-mix(in oklab, #9c2b2b 22%, var(--panel)); border-color: #4a1515; color:#ffd0d0 }
+    .btn.warn{ background: color-mix(in oklab, #9c6a2b 22%, var(--panel)); border-color: #5c2c0c; color:#ffd8a8 }
+
+    .empty{ color: var(--muted); text-align:center; padding:.6rem }
+
+    @keyframes pulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.02);} }
+    @keyframes breathe{ 0%,100%{ filter:brightness(1);} 50%{ filter:brightness(1.07);} }
+    @keyframes halo{0%,100%{box-shadow:0 0 12px rgba(156,194,255,.25);}50%{box-shadow:0 0 22px rgba(156,194,255,.45);} }
+    @keyframes haloGray{0%,100%{box-shadow:0 0 12px rgba(187,187,187,.15);}50%{box-shadow:0 0 22px rgba(187,187,187,.3);} }
+    @keyframes haloBlue{0%,100%{box-shadow:0 0 12px rgba(74,168,255,.25);}50%{box-shadow:0 0 26px rgba(74,168,255,.5);} }
+
+    /* Timer / Progress */
+    .timer{ font-size:.82rem; color: color-mix(in oklab, var(--ink) 80%, #bcd7ff); display:flex; align-items:center; gap:.4rem }
+    .timer .cd{ font-variant-numeric: tabular-nums }
+    .progress{ height:6px; background: var(--panel); border:1px solid var(--c-border-strong); border-radius:999px; overflow:hidden }
+    .progress .bar{ height:100%; width:0%; background: linear-gradient(90deg, var(--c-running), #00d8ff) }
+
+    /* “Display more” */
+    .moreWrap{ display:flex; justify-content:center }
+    .moreBtn{
+      background: var(--panel); border:1px solid var(--c-border-strong); color: var(--ink);
+      border-radius:10px; padding:.45rem .8rem; cursor:pointer; transition: transform .15s; margin:.25rem auto 0;
+      box-shadow: var(--shadow);
+    }
+    .moreBtn:hover{ transform: translateY(-1px) }
+
+    /* Error bar */
+    .notice{
+      padding:.6rem .8rem;
+      color:#ffd9d6;
+      background: color-mix(in oklab, #7a3838 55%, var(--panel));
+      border-bottom:1px solid #7a3838;
+      display:none;
+      border-radius: 12px;
+      margin: .6rem;
+    }
+
+    /* Chips (adaptées au thème) */
+    .chips{ display:flex; flex-wrap:wrap; gap:.35rem; margin:.1rem 0 .2rem; justify-content:center; }
+    .chip{
+      --h: 200;
+      display:inline-flex; align-items:center; gap:.4rem;
+      padding:.25rem .55rem; border-radius:999px; font-size:.82rem; font-weight:800;
+      color:#fff; letter-spacing:.2px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.06), rgba(0,0,0,.12)),
+        hsl(var(--h), 65%, 34%);
+      border:1px solid hsla(var(--h), 70%, 60%, .35);
+      box-shadow: 0 6px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.06);
+      transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+    }
+    .chip:hover{ transform: translateY(-1px); box-shadow: 0 10px 22px rgba(0,0,0,.28); }
+    .chip .k{ opacity:.85; font-weight:700 }
+
+    /* ===== History modal (uniformisé) ===== */
+    .modalOverlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .modal{
+      width:min(860px, 92vw); max-height:80vh;
+      background: var(--panel);
+      border:1px solid var(--c-border-strong);
+      border-radius:14px; box-shadow: 0 20px 56px rgba(0,0,0,.6);
+      display:flex; flex-direction:column; overflow:hidden;
+    }
+    .modalHeader{
+      display:flex; align-items:center; gap:.6rem;
+      padding:.6rem .8rem; border-bottom:1px solid var(--c-border-strong);
+      background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 96%, transparent), color-mix(in oklab, var(--panel) 88%, transparent));
+    }
+    .modalHeader .title{ font-weight:900 }
+    .modalHeader .spacer{ flex:1 }
+    .modalBody{ padding:.6rem .8rem; overflow:auto; display:flex; flex-direction:column; gap:.35rem }
+    .modalFooter{ padding:.5rem .8rem; border-top:1px solid var(--c-border-strong); display:flex; gap:.5rem; justify-content:flex-end; color: var(--muted); }
+    .xBtn,.miniToggle{
+      background: var(--panel); color: var(--ink); border:1px solid var(--c-border-strong); border-radius:8px; padding:.35rem .6rem; cursor:pointer;
+    }
+    .xBtn:hover,.miniToggle:hover{ filter:brightness(1.08) }
+    #searchBox
+    {
+      width:100%;
+      background: var(--c-panel);
+      border: 1px solid var(--c-border-strong);
+      color: var(--ink);
+      border-radius: 10px; padding:.5rem .7rem;
+      box-shadow: var(--shadow);
+      font-weight:700;
+      outline: none;
+    }
+    .histRow{
+      display:flex; align-items:center; gap:.6rem;
+      padding:.45rem .6rem; border-radius:10px; border:1px solid var(--c-border-strong);
+      background: color-mix(in oklab, var(--ink) 2%, var(--panel));
+    }
+    .histRow .ts{ color: var(--muted); font-variant-numeric:tabular-nums }
+    .histRow .st{ font-weight:900; margin-left:auto; padding:.1rem .5rem; border-radius:999px; font-size:.75rem; color:#0a0d10; }
+
+    .hist-success  { background: color-mix(in oklab, var(--c-success) 8%, var(--panel));  border-left:3px solid var(--c-success) }
+    .hist-failed   { background: color-mix(in oklab, var(--c-failed) 8%, var(--panel));   border-left:3px solid var(--c-failed) }
+    .hist-running  { background: color-mix(in oklab, var(--c-running) 8%, var(--panel));  border-left:3px solid var(--c-running) }
+    .hist-pending,
+    .hist-scheduled{ background: color-mix(in oklab, var(--c-pending) 8%, var(--panel));  border-left:3px solid var(--c-pending) }
+    .hist-expired  { background: color-mix(in oklab, var(--c-expired) 8%, var(--panel));  border-left:3px solid var(--c-expired) }
+    .hist-cancelled{ background: color-mix(in oklab, var(--c-cancel) 8%, var(--panel));   border-left:3px solid var(--c-cancel) }
+    .hist-superseded{background: color-mix(in oklab, var(--c-super) 8%, var(--panel));    border-left:3px solid var(--c-super) }
+
+    /* Mobile */
+    @media (max-width: 920px){
+      .board{ flex-direction:column; min-width:0 }
+      .lane{ width:auto }
+      .stats{ width:100%; margin-left:0 }
+      .boardWrap{ height:auto; min-height: calc(100vh - (var(--h-topbar, 0px) + 5px)) }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .card, .laneHeader .dot{ animation: none !important }
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <!-- Header placeholder injected by global.js, kept sticky with offset -->
+    <div class="toolbar-top" id="toolbar"></div>
+
+    <div id="errorBar" class="notice"></div>
+
+    <!-- Controls (sticky: 5px sous --h-topbar) -->
+    <div class="controls">
+      <input id="searchBox" placeholder="Filter (action, MAC, IP, host, service, port…)" />
+      <span id="liveBtn" class="pill active">Live</span>
+      <span id="refreshBtn" class="pill">Refresh</span>
+      <span id="focusBtn" class="pill">Focus active</span>
+      <span id="compactBtn" class="pill">Compact</span>
+      <span id="collapseBtn" class="pill">Collapse</span>
+      <span id="supersededToggle" class="pill"
+            title="Include superseded failures. When OFF, any Failed entries that have a NEWER Scheduled/Pending/Running entry for the same (action, MAC, port) are hidden. Turn ON for forensic audits to review all failed attempts, even if a new run is already planned.">
+        + superseded
+      </span>
+      <span id="stats" class="stats">—</span>
+    </div>
+
+    <div id="board" class="board"></div>
+  </div>
+
+  <!-- History Modal -->
+  <div id="histModal" class="modalOverlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal">
+      <div class="modalHeader">
+        <div class="title">History</div>
+        <div id="histTitle" class="muted" style="color:var(--muted)"></div>
+        <div class="spacer"></div>
+        <button id="histClose" class="xBtn">Close</button>
+      </div>
+      <div id="histBody" class="modalBody"></div>
+      <div class="modalFooter">
+        <small>Rows are color-coded by status.</small>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  /* ====== State ====== */
+  const PAGE_SIZE = 100;
+  let LIVE = true;
+  let FOCUS = false;
+  let COMPACT = false;
+  let INCLUDE_SUPERSEDED = false;
+  let timer = null, clock = null;
+
+  let cache = [];
+  let lastBuckets = null;
+  let showCount = null;
+  let lastFilterKey = '';
+  let COLLAPSED = false;
+
+  // Fixed hues for chips
+  const NET_HUE = 195;
+  const PORT_HUE = 210;
+  const RETRIES_HUE = 30;
+
+  /* ====== DOM ====== */
+  const $ = s => document.querySelector(s);
+  const board   = $('#board');
+  const statsEl = $('#stats');
+  const errBar  = $('#errorBar');
+  const liveBtn = $('#liveBtn');
+  const refBtn  = $('#refreshBtn');
+  const focBtn  = $('#focusBtn');
+  const cmpBtn  = $('#compactBtn');
+  const supBtn  = $('#supersededToggle');
+  const q       = $('#searchBox');
+  const collapseBtn = $('#collapseBtn');
+
+  // History modal elements
+  const histModal = $('#histModal');
+  const histTitle = $('#histTitle');
+  const histBody  = $('#histBody');
+  const histClose = $('#histClose');
+
+  /* ====== Icon cache ====== */
+  const ICON_PRIMARY   = (name) => `/actions/actions_icons/${encodeURIComponent(name)}.png`;
+  const ICON_FALLBACK  = (name) => `/resources/images/status/${encodeURIComponent(name)}/${encodeURIComponent(name)}.bmp`;
+  const ICON_DEFAULT   = `/actions/actions_icons/default.png`;
+
+  const iconCache = new Map();
+
+  async function resolveIconOnce(actionName){
+    const key = (actionName || '').trim() || '__default__';
+    if (iconCache.has(key) && iconCache.get(key).ready) return iconCache.get(key).url;
+
+    if (iconCache.has(key) && iconCache.get(key).promise) {
+      try { await iconCache.get(key).promise; } catch {}
+      return iconCache.get(key).url || ICON_DEFAULT;
+    }
+
+    const tryUrls = [
+      ICON_PRIMARY(key === '__default__' ? 'default' : key),
+      ICON_FALLBACK(key === '__default__' ? 'default' : key),
+      ICON_DEFAULT,
+    ];
+
+    const p = (async () => {
+      for (const u of tryUrls) {
+        try {
+          const r = await fetch(u, { method: 'HEAD', cache: 'force-cache' });
+          if (r.ok) { iconCache.set(key, { url: u, ready: true }); return; }
+        } catch {}
+        try {
+          const r = await fetch(u, { method: 'GET', cache: 'force-cache' });
+          if (r.ok) { iconCache.set(key, { url: u, ready: true }); return; }
+        } catch {}
+      }
+      iconCache.set(key, { url: ICON_DEFAULT, ready: true });
+    })();
+
+    iconCache.set(key, { url: ICON_DEFAULT, ready: false, promise: p });
+    try { await p; } catch {}
+    return iconCache.get(key).url || ICON_DEFAULT;
+  }
+
+  async function ensureIconsResolved(actionNames){
+    const uniq = [...new Set(actionNames.filter(Boolean))];
+    const pending = [];
+    for (const name of uniq) {
+      const ent = iconCache.get(name);
+      if (!ent || !ent.ready) pending.push(resolveIconOnce(name));
+    }
+    if (pending.length === 0) return;
+    await Promise.allSettled(pending);
+    document.querySelectorAll('img.actionIcon[data-action]').forEach(img => {
+      const a = img.dataset.action || '';
+      const ent = iconCache.get(a);
+      if (ent && ent.url && img.getAttribute('src') !== ent.url) {
+        img.setAttribute('src', ent.url);
+      }
+    });
+  }
+
+  function iconSrcSync(actionName){
+    const key = (actionName || '').trim() || '__default__';
+    const ent = iconCache.get(key);
+    return ent && ent.url ? ent.url : ICON_DEFAULT;
+  }
+
+  /* ====== Helpers ====== */
+  const toArray = v => {
+    if (Array.isArray(v)) return v;
+    if (v==null) return [];
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (!s) return [];
+      try { const j = JSON.parse(s); if (Array.isArray(j)) return j; } catch(e){}
+      return s.split(/[;,]/).map(x=>x.trim()).filter(Boolean);
+    }
+    return [];
+  };
+  const dedupeArr = a => [...new Set(a)];
+  const parseJSON = (s, fb={}) => {
+    if (s==null) return fb;
+    if (typeof s !== 'string') return s;
+    try { return JSON.parse(s); } catch { return fb; }
+  };
+  const fmt = ts => {
+    if (!ts) return '';
+    const t = (ts+'').replace(' ', 'T') + 'Z';
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? ts : d.toLocaleString();
+  };
+  const isoToMs = ts => {
+    if (!ts) return NaN;
+    const d = new Date(((ts+'').replace(' ', 'T')) + 'Z');
+    return d.getTime();
+  };
+  const ms2str = ms => {
+    const s = Math.max(0, Math.floor(ms/1000));
+    const h = Math.floor(s/3600);
+    const m = Math.floor((s%3600)/60);
+    const ss= s%60;
+    if (h) return `${h}h ${m.toString().padStart(2,'0')}m ${ss.toString().padStart(2,'0')}s`;
+    if (m) return `${m}m ${ss.toString().padStart(2,'0')}s`;
+    return `${ss}s`;
+  };
+  const keepLatest = (rows, keyFn, dateFn) => {
+    const m = new Map();
+    for (const r of rows) {
+      const k = keyFn(r);
+      const prev = m.get(k);
+      if (!prev) { m.set(k, r); continue; }
+      const a = dateFn(prev) || '';
+      const b = dateFn(r) || '';
+      if (b > a) m.set(k, r);
+    }
+    return [...m.values()];
+  };
+  const filterKey = () => `${q.value.trim().toLowerCase()}|${FOCUS}|${COMPACT}|${INCLUDE_SUPERSEDED}`;
+
+  collapseBtn.addEventListener('click', () => {
+    COLLAPSED = !COLLAPSED;
+    collapseBtn.textContent = COLLAPSED ? 'Expand' : 'Collapse';
+    document.querySelectorAll('.card').forEach(c => c.classList.toggle('collapsed', COLLAPSED));
+  });
+
+  function hashHue(str){
+    if (!str) return 210;
+    let h = 0;
+    for (let i = 0; i < str.length; i++){
+      h = ((h << 5) - h) + str.charCodeAt(i);
+      h |= 0;
+    }
+    h = h % 360;
+    if (h < 0) h += 360;
+    return h;
+  }
+
+  /* ====== Fetch ====== */
+  async function fetchQueue(){
+    const res = await fetch('/action_queue?');
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const js = await res.json();
+    const rows = Array.isArray(js) ? js : (js.rows || js);
+
+    return rows.map(r => {
+      const raw = (r.status||'').toLowerCase();
+      const status = (raw === 'expired') ? 'failed' : raw;
+
+      const scheduledMs = isoToMs(r.scheduled_for);
+      const now = Date.now();
+      const isUpcoming =
+        (status === 'scheduled') ||
+        (status === 'pending' && scheduledMs && scheduledMs > now);
+
+      return {
+        ...r,
+        status,
+        scheduled_ms: scheduledMs,
+        created_ms  : isoToMs(r.created_at) || Date.now(),
+        started_ms  : isoToMs(r.started_at),
+        completed_ms: isoToMs(r.completed_at),
+        tags: dedupeArr(toArray(r.tags)),
+        metadata: parseJSON(r.metadata, {}),
+        _computed_status: isUpcoming ? 'upcoming' : status,
+        priority_effective: r.priority_effective ?? r.priority
+      };
+    });
+  }
+
+  /* ====== Render ====== */
+  function render(rows){
+    cache = rows;
+
+    const needle = q.value.trim().toLowerCase();
+    let list = rows.filter(r => {
+      const s = r._computed_status;
+      if (FOCUS && s!=='upcoming' && s!=='pending' && s!=='running') return false;
+      if (!needle) return true;
+      const bag = [
+        r.action_name, (r.mac || r.mac_address), r.ip, r.hostname, r.service, String(r.port||''),
+        ...(r.tags||[])
+      ].join(' ').toLowerCase();
+      return bag.includes(needle);
+    });
+
+    // Hide FAILED entries superseded by a newer active job
+    const keyFor = r => `${r.action_name}|${(r.mac_address || r.mac || '').toLowerCase()}|${r.port ?? 0}`;
+    const tsOf = r => (r.completed_at || r.started_at || r.scheduled_for || r.created_at || '');
+
+    const activeMap = new Map();
+    for (const r of list) {
+      if (['upcoming','pending','running'].includes(r._computed_status)) {
+        const k = keyFor(r);
+        const ts = tsOf(r);
+        const prev = activeMap.get(k);
+        if (!prev || ts > prev) activeMap.set(k, ts);
+      }
+    }
+    if (!INCLUDE_SUPERSEDED) {
+      list = list.filter(r => {
+        if (r._computed_status !== 'failed') return true;
+        const k = keyFor(r);
+        const actTs = activeMap.get(k);
+        if (!actTs) return true;
+        return tsOf(r) > actTs;
+      });
+    }
+
+    // Deduplicate failed by newest/retry_count
+    const failedMap = new Map();
+    const nonFailed = [];
+    for (const r of list) {
+      if (r._computed_status === 'failed') {
+        const key = `${r.action_name}|${(r.mac_address || r.mac || '').toLowerCase()}|${r.port || 0}`;
+        const existing = failedMap.get(key);
+        if (!existing ||
+            r.retry_count > existing.retry_count ||
+            (r.retry_count === existing.retry_count && r.created_at > existing.created_at)) {
+          failedMap.set(key, r);
+        }
+      } else {
+        nonFailed.push(r);
+      }
+    }
+    list = [...nonFailed, ...failedMap.values()];
+
+    // Cross-lane coalescing
+    const isActive = s => (s === 'running' || s === 'pending' || s === 'upcoming');
+    const bestByKey = new Map();
+    for (const r of list) {
+      const k = keyFor(r);
+      const prev = bestByKey.get(k);
+      if (!prev) { bestByKey.set(k, r); continue; }
+      const a = prev, b = r;
+      const aAct = isActive(a._computed_status), bAct = isActive(b._computed_status);
+      if (bAct && !aAct) { bestByKey.set(k, b); continue; }
+      if (!bAct && aAct) { continue; }
+      if (tsOf(b) > tsOf(a)) bestByKey.set(k, b);
+    }
+    list = [...bestByKey.values()];
+
+    // Buckets
+    const buckets = {upcoming:[],pending:[],running:[],success:[],failed:[],cancelled:[]};
+    for (const r of list) {
+      const k = r._computed_status;
+      if (buckets[k]) buckets[k].push(r);
+    }
+
+    // Compact
+    if (COMPACT) {
+      const keyFn = r => `${r.action_name||''}|${(r.mac || r.mac_address || '').toLowerCase()}|${r.port??0}`;
+      const dateFn = r => (r.completed_at || r.started_at || r.scheduled_for || r.created_at || '');
+      for (const k of Object.keys(buckets)) {
+        buckets[k] = keepLatest(buckets[k], keyFn, dateFn);
+      }
+    }
+
+    const counts = Object.fromEntries(Object.entries(buckets).map(([k,v])=>[k,v.length]));
+    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    statsEl.textContent =
+      `Total ${total} – upcoming ${counts.upcoming} · pending ${counts.pending} · running ${counts.running} · success ${counts.success} · failed ${counts.failed}${INCLUDE_SUPERSEDED ? ' (+superseded)' : ''} · cancelled ${counts.cancelled}`;
+
+    const fk = filterKey();
+    if (fk !== lastFilterKey || !showCount) {
+      showCount = {upcoming:PAGE_SIZE,pending:PAGE_SIZE,running:PAGE_SIZE,success:PAGE_SIZE,failed:PAGE_SIZE,cancelled:PAGE_SIZE};
+      lastFilterKey = fk;
+    }
+
+    lastBuckets = buckets;
+
+    const order = [
+      ['running','Running'],
+      ['pending','Pending'],
+      ['upcoming','Upcoming'],
+      ['success','Success'],
+      ['failed','Failed'],
+      ['cancelled','Cancelled'],
+    ];
+
+    // Pre-resolve icons for visible actions
+    const actionsOnScreen = [];
+    for (const k of Object.keys(buckets)) {
+      for (const r of buckets[k]) { if (r.action_name) actionsOnScreen.push(r.action_name); }
+    }
+    ensureIconsResolved(actionsOnScreen).catch(()=>{ /* noop */ });
+
+    board.innerHTML = order.map(([key,label]) => laneHTML(label, key, buckets[key])).join('');
+
+    if (COLLAPSED) {
+      document.querySelectorAll('.card').forEach(c => c.classList.add('collapsed'));
+    }
+
+    if (clock) { clearInterval(clock); clock = null; }
+    updateCountdowns();
+    clock = setInterval(updateCountdowns, 1000);
+  }
+
+  function laneHTML(label, key, list){
+    if (key === 'pending') {
+      list = list.slice().sort((a,b) => {
+        const pa = a.priority_effective || 0;
+        const pb = b.priority_effective || 0;
+        if (pb !== pa) return pb - pa;
+        const dateA = a.scheduled_for || a.created_at || '';
+        const dateB = b.scheduled_for || b.created_at || '';
+        return (dateA > dateB) ? 1 : (dateA < dateB) ? -1 : 0;
+      });
+    } else if (key === 'success' || key === 'failed') {
+      list = list.slice().sort((a,b) => {
+        const da = a.completed_ms || a.started_ms || a.created_ms || 0;
+        const db = b.completed_ms || b.started_ms || b.created_ms || 0;
+        return db - da;
+      });
+    } else if (key === 'upcoming') {
+      list = list.slice().sort((a,b) => {
+        const da = a.scheduled_ms || a.created_ms || Infinity;
+        const db = b.scheduled_ms || b.created_ms || Infinity;
+        return da - db;
+      });
+    } else {
+      list = list.slice().sort((a,b) => {
+        const pa = a.priority_effective || 0;
+        const pb = b.priority_effective || 0;
+        if (pb !== pa) return pb - pa;
+        const d = x => (x.completed_at||x.started_at||x.scheduled_for||x.created_at||'');
+        return (d(b) > d(a)) ? 1 : -1;
+      });
+    }
+
+    const visible = list.length ? list.slice(0, showCount[key] ?? PAGE_SIZE) : [];
+    const more = list.length - visible.length;
+
+    const body = visible.length
+      ? visible.map(cardHTML).join('')
+      : `<div class="empty">No entries</div>`;
+
+    return `
+      <div class="lane status-${key}">
+        <div class="laneHeader">
+          <span class="dot"></span>
+          <strong>${label}</strong>
+          <span class="count">${list.length}</span>
+        </div>
+        <div class="laneBody">
+          ${body}
+          ${more>0 ? `<div class="moreWrap"><button class="moreBtn" onclick="__displayMore('${key}')">Display more… (${Math.min(more, PAGE_SIZE)} / ${more})</button></div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  function chipHue(text, prefixLabel, hue){
+    const h = (typeof hue === 'number') ? hue : hashHue(text || '');
+    const label = prefixLabel ? `<span class="k">${prefixLabel}</span>` : '';
+    return `<span class="chip" style="--h:${h}">${label}${label ? '&nbsp;' : ''}${escapeHtml(text || '')}</span>`;
+  }
+
+  function cardHTML(r) {
+    const badge = `<span class="badge">${r._computed_status}</span>`;
+
+    const actName = r.action_name || '';
+    const iconUrl = iconSrcSync(actName);
+    const actionIcon = `
+      <img class="actionIcon"
+          data-action="${escapeAttr(actName)}"
+          src="${iconUrl}"
+          alt="${escapeAttr(actName || 'default')}"
+          loading="lazy" decoding="async" referrerpolicy="no-referrer">
+    `;
+    const actionIconWrap = `<div class="actionIconWrap">${actionIcon}</div>`;
+
+    const header = `
+      <div class="cardHeader">
+        ${actionIconWrap}
+        <div class="actionName">${chipHue(r.action_name || '(no name)')}</div>
+        ${badge}
+      </div>
+    `;
+
+const macVal = r.mac || r.mac_address;
+const netChips = `
+  <div class="chips">
+    ${r.hostname ? chipHue(r.hostname, '', NET_HUE) : ''}
+    ${r.ip ? chipHue(r.ip, '', NET_HUE) : ''}
+    ${r.port != null ? chipHue(String(r.port), 'Port', PORT_HUE) : ''}
+    ${macVal ? chipHue(macVal, '', NET_HUE) : ''}
+  </div>
+`;
+
+const kv = `
+  ${r.service ? `<span class="k">Svc</span> <span>${r.service}</span>` : ''}
+`;
+
+const meta = `
+  <span>created: <b>${fmt(r.created_at)}</b></span>
+  ${r.started_at ? `<span>started: <b>${fmt(r.started_at)}</b></span>` : ''}
+  ${r.completed_at ? `<span>done: <b>${fmt(r.completed_at)}</b></span>` : ''}
+  ${Number(r.retry_count) > 0
+    ? `<span>retries: ${chipHue(`${r.retry_count}/${r.max_retries ?? '?'}`, '', RETRIES_HUE)}</span>`
+    : ''}
+  ${r.priority_effective != null
+    ? `<span>prio eff: <b>${r.priority_effective}</b>${r.priority != null ? ` <small>(base ${r.priority})</small>` : ''}</span>`
+    : (r.priority != null ? `<span>prio: <b>${r.priority}</b></span>` : '')
+  }
+`;
+
+
+    const t = (r.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+
+    const isUpcoming = r._computed_status === 'upcoming';
+    const showStartTimer =
+      isUpcoming || (r._computed_status === 'pending' && r.scheduled_ms && r.scheduled_ms > Date.now());
+
+    const timerHtml = showStartTimer
+      ? `<div class="timer" data-type="start" data-ts="${escapeAttr(r.scheduled_for || '')}">
+           Eligible in <span class="cd">—</span>
+         </div>
+         ${progressHtml(r)}`
+      : (r._computed_status === 'running' && r.started_ms
+        ? `<div class="timer" data-type="elapsed" data-ts="${escapeAttr(r.started_at || '')}">
+             Elapsed <span class="cd">—</span>
+           </div>` : '');
+
+    const btns = [];
+    if (isUpcoming || r.status === 'scheduled' || r.status === 'pending' || r.status === 'running') {
+      btns.push(`<button class="btn warn" onclick="__queue(${r.id},'cancel')">Cancel</button>`);
+    }
+    if (r.status !== 'running' && r.status !== 'pending' && r.status !== 'scheduled') {
+      btns.push(`<button class="btn danger" onclick="__queue(${r.id},'delete')">Delete</button>`);
+    }
+
+    const infoBtn = `
+      <button class="infoBtn"
+              title="View history"
+              data-action="${escapeAttr(r.action_name||'')}"
+              data-mac="${escapeAttr(macVal||'')}"
+              data-port="${String(r.port||0)}"
+              onclick="__openHistory(this)">ℹ︎</button>`;
+
+    return `
+      <div class="card status-${r._computed_status}">
+        ${infoBtn}
+        ${header}
+        ${netChips}
+        ${kv.trim() ? `<div class="kv">${kv}</div>` : ''}
+        ${t ? `<div class="tags">${t}</div>` : ''}
+        ${timerHtml}
+        <div class="meta">${meta}</div>
+        ${btns.length ? `<div class="btns">${btns.join('')}</div>` : ''}
+        ${r.error_message ? `<div class="notice" style="display:block;margin:.2rem 0">${escapeHtml(r.error_message)}</div>` : ''}
+        ${r.result_summary ? `<div class="notice" style="display:block;background: color-mix(in oklab, #2a6b2a 40%, var(--panel)); border-color:#355035; color:#d7f0d7; margin:.2rem 0">${escapeHtml(r.result_summary)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  function progressHtml(r){
+    const start = r.created_at || r.started_at;
+    const end   = r.scheduled_for;
+    if (!start || !end) return '';
+    return `<div class="progress"><div class="bar" data-start="${escapeAttr(start)}" data-end="${escapeAttr(end)}"></div></div>`;
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function escapeAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+  /* ====== Countdown updater ====== */
+  function updateCountdowns(){
+    const now = Date.now();
+
+    document.querySelectorAll('.timer').forEach(el=>{
+      const type = el.dataset.type;
+      const ts = el.dataset.ts;
+      const target = isoToMs(ts);
+      const cd = el.querySelector('.cd');
+      if (!cd || !target) return;
+
+      if (type === 'start'){
+        const diff = target - now;
+        cd.textContent = diff > 0 ? ms2str(diff) : 'due';
+      }else if(type === 'elapsed'){
+        const diff = now - target;
+        cd.textContent = diff > 0 ? ms2str(diff) : '0s';
+      }
+    });
+
+    document.querySelectorAll('.progress .bar').forEach(bar=>{
+      const s = isoToMs(bar.dataset.start);
+      const e = isoToMs(bar.dataset.end);
+      if (!s || !e || e <= s) { bar.style.width = '0%'; return; }
+      const pct = Math.max(0, Math.min(100, ((now - s) / (e - s)) * 100));
+      bar.style.width = pct.toFixed(1) + '%';
+    });
+  }
+
+  /* ====== Pagination controls ====== */
+  window.__displayMore = function(status){
+    if (!lastBuckets) return;
+    const total = lastBuckets[status]?.length ?? 0;
+    const cur = showCount[status] ?? PAGE_SIZE;
+    showCount[status] = Math.min(cur + PAGE_SIZE, total);
+    board.innerHTML = ['upcoming','pending','running','success','failed','cancelled']
+      .map(k => {
+        const label = k[0].toUpperCase()+k.slice(1);
+        return laneHTML(label, k, lastBuckets[k]);
+      }).join('');
+    updateCountdowns();
+  };
+
+  /* ====== Queue commands ====== */
+  window.__queue = async function(id, cmd){
+    try{
+      const r = await fetch('/queue_cmd', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id, cmd })
+      });
+      const js = await r.json().catch(()=>({}));
+      if (js.status && (js.status!=='success' && js.status!=='ok')) throw new Error(js.message||'Command failed');
+      tick();
+    }catch(e){ showError('Command failed: '+e.message); }
+  };
+
+  /* ====== History modal ====== */
+  window.__openHistory = async function(btnEl){
+    const action = btnEl.dataset.action || '';
+    const mac    = btnEl.dataset.mac || '';
+    const port   = btnEl.dataset.port || '0';
+
+    histTitle.textContent = `— ${action} · ${mac}${port && port!=='0' ? ` · port ${port}` : ''}`;
+    histBody.innerHTML = `<div class="empty">Loading…</div>`;
+    openModal();
+
+    try{
+      const url = `/attempt_history?action=${encodeURIComponent(action)}&mac=${encodeURIComponent(mac)}&port=${encodeURIComponent(port)}&limit=100`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      const js = await r.json();
+      const rows = Array.isArray(js) ? js : (js.rows || js || []);
+      if (!rows.length) {
+        histBody.innerHTML = `<div class="empty">No history</div>`;
+        return;
+      }
+      const norm = rows.map(x => ({
+        status: (x.status||'').toLowerCase(),
+        retry_count: Number(x.retry_count||0),
+        max_retries: x.max_retries,
+        ts: x.ts || x.completed_at || x.started_at || x.scheduled_for || x.created_at || ''
+      })).sort((a,b) => (b.ts > a.ts ? 1 : -1));
+
+      histBody.innerHTML = norm.map(hr => historyRowHTML(hr)).join('');
+    }catch(e){
+      histBody.innerHTML = `<div class="empty">Error: ${escapeHtml(e.message)}</div>`;
+    }
+  };
+
+  function historyRowHTML(hr){
+    const st = hr.status || 'unknown';
+    const cls = `histRow hist-${st}`;
+    const stBadge = `<span class="st">${st}</span>`;
+    const retry = (hr.retry_count || hr.max_retries != null)
+      ? `<span style="color:var(--ink)">retry ${hr.retry_count}${hr.max_retries!=null?'/'+hr.max_retries:''}</span>`
+      : '';
+    return `
+      <div class="${cls}">
+        <span class="ts">${escapeHtml(fmt(hr.ts))}</span>
+        ${retry}
+        <span style="margin-left:auto"></span>
+        ${stBadge}
+      </div>
+    `;
+  }
+
+  function openModal(){
+    histModal.style.display = 'flex';
+    histModal.setAttribute('aria-hidden','false');
+  }
+  function closeModal(){
+    histModal.style.display = 'none';
+    histModal.setAttribute('aria-hidden','true');
+  }
+  histClose.addEventListener('click', closeModal);
+  histModal.addEventListener('click', (e)=>{ if (e.target === histModal) closeModal(); });
+  document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && histModal.style.display==='flex') closeModal(); });
+
+  /* ====== Loop & UI ====== */
+  function showError(msg){
+    errBar.textContent = msg;
+    errBar.style.display = 'block';
+    clearTimeout(showError._t);
+    showError._t = setTimeout(()=> errBar.style.display='none', 5000);
+  }
+
+  async function tick(){
+    try{
+      const rows = await fetchQueue();
+      render(rows);
+    }catch(e){
+      showError('Queue fetch error: '+e.message);
+    }
+  }
+
+  function setLive(on){
+    LIVE = on;
+    liveBtn.classList.toggle('active', LIVE);
+    if (timer) { clearInterval(timer); timer = null; }
+    if (LIVE) { timer = setInterval(tick, 2500); }
+  }
+
+  // Events
+  liveBtn.addEventListener('click', ()=> setLive(!LIVE));
+  refBtn.addEventListener('click', tick);
+  focBtn.addEventListener('click', ()=>{
+    FOCUS = !FOCUS;
+    focBtn.classList.toggle('active', FOCUS);
+    lastFilterKey = '';
+    tick();
+  });
+  cmpBtn.addEventListener('click', ()=>{
+    COMPACT = !COMPACT;
+    cmpBtn.classList.toggle('active', COMPACT);
+    lastFilterKey = '';
+    tick();
+  });
+  supBtn.addEventListener('click', ()=>{
+    INCLUDE_SUPERSEDED = !INCLUDE_SUPERSEDED;
+    supBtn.classList.toggle('active', INCLUDE_SUPERSEDED);
+    supBtn.textContent = INCLUDE_SUPERSEDED ? '- superseded' : '+ superseded';
+    supBtn.title = INCLUDE_SUPERSEDED
+      ? "Exclude superseded failures. When ON, Failed entries that have a NEWER Scheduled/Pending/Running entry for the same (action, MAC, port) are hidden. Turn OFF for forensic audits to review every failure."
+      : "Include superseded failures. When OFF, any Failed entries that have a NEWER Scheduled/Pending/Running entry for the same (action, MAC, port) are hidden. Turn ON for forensic audits to review all failed attempts, even if a new run is already planned.";
+    lastFilterKey = '';
+    tick();
+  });
+
+  let deb = null;
+  q.addEventListener('input', ()=>{
+    clearTimeout(deb);
+    deb = setTimeout(()=>{ lastFilterKey = ''; tick(); }, 180);
+  });
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    supBtn.textContent = INCLUDE_SUPERSEDED ? '- superseded' : '+ superseded';
+    setLive(true);
+    tick();
+  });
+})();
+</script>
+</body>
+</html>

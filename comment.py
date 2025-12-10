@@ -1,71 +1,342 @@
 # comment.py
-# This module defines the `Commentaireia` class, which provides context-based random comments.
-# The comments are based on various themes such as "IDLE", "SCANNER", and others, to simulate
-# different states or actions within a network scanning and security context. The class uses a 
-# shared data object to determine delays between comments and switches themes based on the current 
-# state. The `get_commentaire` method returns a random comment from the specified theme, ensuring 
-# comments are not repeated too frequently.
+# Comments manager with database backend
+# Provides contextual messages for display with timing control and multilingual support.
+# comment = ai.get_comment("SSHBruteforce", params={"user": "pi", "ip": "192.168.0.12"})
+# Avec un texte DB du style: "Trying {user}@{ip} over SSH..."
 
-import random
-import time
-import logging
-import json
-from init_shared import shared_data  
-from logger import Logger
 import os
+import time
+import random
+import locale
+from typing import Optional, List, Dict, Any
 
-logger = Logger(name="comment.py", level=logging.DEBUG)
+from init_shared import shared_data
+from logger import Logger
 
-class Commentaireia:
-    """Provides context-based random comments for bjorn."""
+logger = Logger(name="comment.py", level=20)  # INFO
+
+
+# --- Helpers -----------------------------------------------------------------
+
+class _SafeDict(dict):
+    """Safe formatter: leaves unknown {placeholders} intact instead of raising."""
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+
+def _row_get(row: Any, key: str, default=None):
+    """Safe accessor for rows that may be dict-like or sqlite3.Row."""
+    try:
+        return row.get(key, default)
+    except Exception:
+        try:
+            return row[key]
+        except Exception:
+            return default
+
+
+# --- Main class --------------------------------------------------------------
+
+class CommentAI:
+    """
+    AI-style comment generator for status messages with:
+      - Randomized delay between messages
+      - Database-backed phrases (text, status, theme, lang, weight)
+      - Multilingual search with language priority and fallbacks
+      - Safe string templates: "Trying {user}@{ip}..."
+    """
+
     def __init__(self):
         self.shared_data = shared_data
-        self.last_comment_time = 0  # Initialize last_comment_time
-        self.comment_delay = random.randint(self.shared_data.comment_delaymin, self.shared_data.comment_delaymax)  # Initialize comment_delay
-        self.last_theme = None  # Initialize last_theme
-        self.themes = self.load_comments(self.shared_data.commentsfile)  # Load themes from JSON file
 
-    def load_comments(self, commentsfile):
-        """Load comments from a JSON file."""
-        cache_file = commentsfile + '.cache'
+        # Timing configuration with robust defaults
+        self.delay_min = max(1, int(getattr(self.shared_data, "comment_delaymin", 5)))
+        self.delay_max = max(self.delay_min, int(getattr(self.shared_data, "comment_delaymax", 15)))
+        self.comment_delay = self._new_delay()
 
-        # Check if a cached version exists and is newer than the original file
-        if os.path.exists(cache_file) and os.path.getmtime(cache_file) >= os.path.getmtime(commentsfile):
-            try:
-                with open(cache_file, 'r') as file:
-                    comments_data = json.load(file)
-                    logger.info("Comments loaded successfully from cache.")
-                    return comments_data
-            except (FileNotFoundError, json.JSONDecodeError):
-                logger.warning("Cache file is corrupted or not found. Loading from the original file.")
+        # State tracking
+        self.last_comment_time: float = 0.0
+        self.last_status: Optional[str] = None
 
-        # Load from the original file if cache is not used or corrupted
+        # Ensure comments are loaded in database
+        self._ensure_comments_loaded()
+
+        # Initialize first comment for UI using language priority
+        if not hasattr(self.shared_data, "bjorn_says") or not getattr(self.shared_data, "bjorn_says"):
+            first = self._pick_text("IDLE", lang=None, params=None)
+            self.shared_data.bjorn_says = first or "Initializing..."
+
+    # --- Language priority & JSON discovery ----------------------------------
+
+    def _lang_priority(self, preferred: Optional[str] = None) -> List[str]:
+        """
+        Build ordered language preference list, deduplicated.
+        Priority sources:
+        1. explicit `preferred`
+        2. shared_data.lang_priority (list)
+        3. shared_data.lang (single fallback)
+        4. defaults ["en", "fr"]
+        """
+        order: List[str] = []
+
+        def norm(x: Optional[str]) -> Optional[str]:
+            if not x:
+                return None
+            x = str(x).strip().lower()
+            return x[:2] if x else None
+
+        # 1) explicit override
+        p = norm(preferred)
+        if p:
+            order.append(p)
+
+        sd = self.shared_data
+
+        # 2) list from shared_data
+        if hasattr(sd, "lang_priority") and isinstance(sd.lang_priority, (list, tuple)):
+            order += [l for l in (norm(x) for x in sd.lang_priority) if l]
+
+        # 3) single language from shared_data
+        if hasattr(sd, "lang"):
+            l = norm(sd.lang)
+            if l:
+                order.append(l)
+
+        # 4) fallback defaults
+        order += ["en", "fr"]
+
+        # Deduplicate while preserving order
+        seen, res = set(), []
+        for l in order:
+            if l and l not in seen:
+                seen.add(l)
+                res.append(l)
+        return res
+
+
+    def _get_comments_json_paths(self, lang: Optional[str] = None) -> List[str]:
+        """
+        Return candidate JSON paths, restricted to default_comments_dir (and explicit comments_file).
+        Supported patterns:
+          - {comments_file} (explicit)
+          - {default_comments_dir}/comments.json
+          - {default_comments_dir}/comments.<lang>.json
+          - {default_comments_dir}/{lang}/comments.json
+        """
+        lang = (lang or "").strip().lower()
+        candidates = []
+
+        # 1) Explicit path from shared_data
+        comments_file = getattr(self.shared_data, "comments_file", "") or ""
+        if comments_file:
+            candidates.append(comments_file)
+
+        # 2) Default comments directory
+        default_dir = getattr(self.shared_data, "default_comments_dir", "")
+        if default_dir:
+            candidates += [
+                os.path.join(default_dir, "comments.json"),
+                os.path.join(default_dir, f"comments.{lang}.json") if lang else "",
+                os.path.join(default_dir, lang, "comments.json") if lang else "",
+            ]
+
+        # Deduplicate
+        unique_paths, seen = [], set()
+        for p in candidates:
+            p = (p or "").strip()
+            if p and p not in seen:
+                seen.add(p)
+                unique_paths.append(p)
+
+        return unique_paths
+
+
+    # --- Bootstrapping DB -----------------------------------------------------
+
+    def _ensure_comments_loaded(self):
+        """Ensure comments are present in DB; import JSON if empty."""
         try:
-            with open(commentsfile, 'r') as file:
-                comments_data = json.load(file)
-                logger.info("Comments loaded successfully from JSON file.")
-                # Save to cache
-                with open(cache_file, 'w') as cache:
-                    json.dump(comments_data, cache)
-                return comments_data
-        except FileNotFoundError:
-            logger.error(f"The file '{commentsfile}' was not found.")
-            return {"IDLE": ["Default comment, no comments file found."]}  # Fallback to a default theme
-        except json.JSONDecodeError:
-            logger.error(f"The file '{commentsfile}' is not a valid JSON file.")
-            return {"IDLE": ["Default comment, invalid JSON format."]}  # Fallback to a default theme
+            comment_count = int(self.shared_data.db.count_comments())
+        except Exception as e:
+            logger.error(f"Database error counting comments: {e}")
+            comment_count = 0
 
-    def get_commentaire(self, theme):
-        """ This method returns a random comment based on the specified theme."""
-        current_time = time.time()  # Get the current time in seconds
-        if theme != self.last_theme or current_time - self.last_comment_time >= self.comment_delay:  # Check if the theme has changed or if the delay has expired
-            self.last_comment_time = current_time   # Update the last comment time
-            self.last_theme = theme   # Update the last theme
+        if comment_count > 0:
+            logger.debug(f"Comments already in database: {comment_count}")
+            return
 
-            if theme not in self.themes: 
-                logger.warning(f"The theme '{theme}' is not defined, using the default theme IDLE.")
-                theme = "IDLE"
+        imported = 0
+        for lang in self._lang_priority():
+            for json_path in self._get_comments_json_paths(lang):
+                if os.path.exists(json_path):
+                    try:
+                        count = int(self.shared_data.db.import_comments_from_json(json_path))
+                        imported += count
+                        if count > 0:
+                            logger.info(f"Imported {count} comments (auto-detected lang) from {json_path}")
+                            break  # stop at first successful import
+                    except Exception as e:
+                        logger.error(f"Failed to import comments from {json_path}: {e}")
+            if imported > 0:
+                break
 
-            return random.choice(self.themes[theme])  # Return a random comment based on the specified theme
-        else:
+        if imported == 0:
+            logger.debug("No comments imported, seeding minimal fallback set")
+            self._seed_minimal_comments()
+
+
+    def _seed_minimal_comments(self):
+        """
+        Seed minimal set when no JSON available.
+        Schema per row: (text, status, theme, lang, weight)
+        """
+        default_comments = [
+            # English
+            ("Scanning network for targets...", "NetworkScanner", "NetworkScanner", "en", 2),
+            ("System idle, awaiting commands.", "IDLE", "IDLE", "en", 3),
+            ("Analyzing network topology...", "NetworkScanner", "NetworkScanner", "en", 1),
+            ("Processing authentication attempts...", "SSHBruteforce", "SSHBruteforce", "en", 2),
+            ("Searching for vulnerabilities...", "NmapVulnScanner", "NmapVulnScanner", "en", 2),
+            ("Extracting credentials from services...", "CredExtractor", "CredExtractor", "en", 1),
+            ("Monitoring network changes...", "IDLE", "IDLE", "en", 2),
+            ("Ready for deployment.", "IDLE", "IDLE", "en", 1),
+            ("Target acquisition in progress...", "NetworkScanner", "NetworkScanner", "en", 1),
+            ("Establishing secure connections...", "SSHBruteforce", "SSHBruteforce", "en", 1),
+
+            # French (bonus minimal)
+            ("Analyse du réseau en cours...", "NetworkScanner", "NetworkScanner", "fr", 2),
+            ("Système au repos, en attente d’ordres.", "IDLE", "IDLE", "fr", 3),
+            ("Cartographie de la topologie réseau...", "NetworkScanner", "NetworkScanner", "fr", 1),
+            ("Tentatives d’authentification en cours...", "SSHBruteforce", "SSHBruteforce", "fr", 2),
+            ("Recherche de vulnérabilités...", "NmapVulnScanner", "NmapVulnScanner", "fr", 2),
+            ("Extraction d’identifiants depuis les services...", "CredExtractor", "CredExtractor", "fr", 1),
+        ]
+        try:
+            self.shared_data.db.insert_comments(default_comments)
+            logger.info(f"Seeded {len(default_comments)} minimal comments into database")
+        except Exception as e:
+            logger.error(f"Failed to seed minimal comments: {e}")
+
+    # --- Core selection -------------------------------------------------------
+
+    def _new_delay(self) -> int:
+        """Generate new random delay between comments."""
+        delay = random.randint(self.delay_min, self.delay_max)
+        logger.debug(f"Next comment delay: {delay}s")
+        return delay
+
+    def _pick_text(
+        self,
+        status: str,
+        lang: Optional[str],
+        params: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        """
+        Pick a weighted comment across language preference; supports {templates}.
+        Selection cascade (per language in priority order):
+          1) (lang, status)
+          2) (lang, 'ANY')
+          3) (lang, 'IDLE')
+        Then cross-language:
+          4) (any, status)
+          5) (any, 'IDLE')
+        """
+        status = status or "IDLE"
+        langs = self._lang_priority(preferred=lang)
+
+        # Language-scoped queries
+        rows = []
+        queries = [
+            ("SELECT text, weight FROM comments WHERE lang=? AND status=?", lambda L: (L, status)),
+            ("SELECT text, weight FROM comments WHERE lang=? AND status='ANY'", lambda L: (L,)),
+            ("SELECT text, weight FROM comments WHERE lang=? AND status='IDLE'", lambda L: (L,)),
+        ]
+        for L in langs:
+            for sql, args_fn in queries:
+                try:
+                    rows = self.shared_data.db.query(sql, args_fn(L))
+                except Exception as e:
+                    logger.error(f"DB query failed: {e}")
+                    rows = []
+                if rows:
+                    break
+            if rows:
+                break
+
+        # Cross-language fallbacks
+        if not rows:
+            for sql, args in [
+                ("SELECT text, weight FROM comments WHERE status=? ORDER BY RANDOM() LIMIT 50", (status,)),
+                ("SELECT text, weight FROM comments WHERE status='IDLE' ORDER BY RANDOM() LIMIT 50", ()),
+            ]:
+                try:
+                    rows = self.shared_data.db.query(sql, args)
+                except Exception as e:
+                    logger.error(f"DB query failed: {e}")
+                    rows = []
+                if rows:
+                    break
+
+        if not rows:
             return None
+
+        # Weighted selection pool
+        pool: List[str] = []
+        for row in rows:
+            try:
+                w = int(_row_get(row, "weight", 1)) or 1
+            except Exception:
+                w = 1
+            w = max(1, w)
+            text = _row_get(row, "text", "")
+            if text:
+                pool.extend([text] * w)
+
+        chosen = random.choice(pool) if pool else _row_get(rows[0], "text", None)
+
+        # Templates {var}
+        if chosen and params:
+            try:
+                chosen = str(chosen).format_map(_SafeDict(params))
+            except Exception:
+                # Keep the raw text if formatting fails
+                pass
+
+        return chosen
+
+    # --- Public API -----------------------------------------------------------
+
+    def get_comment(
+        self,
+        status: str,
+        lang: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None
+    ) -> Optional[str]:
+        """
+        Return a comment if status changed or delay expired.
+
+        Args:
+            status: logical status name (e.g., "IDLE", "SSHBruteforce", "NetworkScanner").
+            lang: language override (e.g., "fr"); if None, auto priority is used.
+            params: optional dict to format templates with {placeholders}.
+
+        Returns:
+            str or None: A new comment, or None if not time yet and status unchanged.
+        """
+        current_time = time.time()
+        status = status or "IDLE"
+
+        status_changed = (status != self.last_status)
+        if status_changed or (current_time - self.last_comment_time >= self.comment_delay):
+            text = self._pick_text(status, lang, params)
+            if text:
+                self.last_status = status
+                self.last_comment_time = current_time
+                self.comment_delay = self._new_delay()
+                logger.debug(f"Next comment delay: {self.comment_delay}s")
+                return text
+        return None
+
+
+# Backward compatibility alias
+Commentaireia = CommentAI

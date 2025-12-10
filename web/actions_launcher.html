@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <title>Bjorn - Actions Launcher</title>
+  <link rel="icon" href="web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="web/css/global.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b0d10" />
+  <script src="web/js/global.js" defer></script>
+
+  <style>
+/* =========================================================
+   Actions Launcher — scoped CSS (plays nice with global.css)
+   ---------------------------------------------------------
+   • No layout override of .sidebar/.main positions.
+   • Uses global tokens (colors, radii, borders, shadows).
+   • Mobile = single console, toolbar hidden.
+   ========================================================= */
+
+  /* Page container (center column only) */
+  #actionsLauncher{
+    min-height:100%;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:var(--gap-3, 10px);
+  }
+
+  /* Panel look consistent with cards/console surfaces */
+  .panel{
+    background: var(--grad-card, var(--c-panel));
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius, 14px);
+    box-shadow: var(--elev, 0 10px 30px var(--acid-1a, #00ff9a1a), inset 0 0 0 1px var(--acid-22, #00ff9a22));
+    overflow: clip;
+  }
+
+  /* ---------- Sidebar (only inner content styles) ---------- */
+  .sidebar .sideheader{ padding:10px 10px 6px; border-bottom:1px dashed var(--c-border); }
+  .tabs-container{ display:flex; gap:8px; flex-wrap:wrap; }
+  .tab-btn{
+    all:unset; cursor:pointer; padding:6px 10px; border-radius:10px;
+    background:var(--c-pill-bg); border:1px solid var(--c-border); color:var(--muted);
+  }
+  .tab-btn.active{
+    background:var(--grad-chip-selected);
+    outline:2px solid color-mix(in oklab, var(--acid) 55%, transparent);
+    outline-offset:0;
+  }
+  .sidebar .search{ display:flex; gap:10px; padding:10px; }
+  .sidebar .input{
+    flex:1; background:var(--c-panel); border:1px solid var(--c-border-strong);
+    color:var(--ink); padding:10px 12px; border-radius:var(--control-r,10px); font:inherit;
+  }
+  .sidebar .input:focus{ outline:none; box-shadow:0 0 0 2px color-mix(in oklab, var(--acid) 55%, transparent) inset; }
+  .sidecontent{ padding:8px; overflow:auto; }
+
+  /* Action list */
+  .sidebar .list{ display:flex; flex-direction:column; gap:10px; padding-right:4px; }
+  .sidebar .row{
+    position:relative; display:grid; grid-template-columns:84px 1fr;
+    gap:12px; padding:10px; background:var(--c-panel-2); border-radius:12px; cursor:pointer;
+    transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .sidebar .row:hover{
+    transform:translateY(-1px);
+    border-color:color-mix(in oklab, var(--accent) 25%, var(--c-border));
+    box-shadow:0 10px 26px var(--glow-weak);
+  }
+  .sidebar .row .ic{
+    width:84px; height:84px; display:grid; place-items:center;
+    border-radius:12px; background:var(--c-panel); overflow:hidden;
+  }
+  .ic-img{ width:70px; height:70px; object-fit:cover; display:block; }
+  .sidebar .row > div:nth-child(2){ min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .name{ font-weight:800; color:var(--acid-2); font-size:14px; line-height:1.2; }
+  .desc{ color:var(--muted); font-size:13px; line-height:1.25; }
+  .sidebar .row .chip{
+    position:absolute; top:6px; left:calc(84px/2 + 10px); transform:translateX(-50%);
+    padding:2px 8px; border-radius:999px; border:1px solid var(--c-border);
+    background:var(--c-chip-bg); color:var(--muted); font-size:11px; line-height:1; pointer-events:none;
+  }
+  .chip.ok{ color:var(--ok); border-color:color-mix(in oklab, var(--ok) 60%, transparent); }
+  .chip.err{ color:var(--danger); border-color:color-mix(in oklab, var(--danger) 60%, transparent); }
+  .chip.run{ color:var(--acid); border-color:color-mix(in oklab, var(--acid) 60%, transparent); }
+
+  /* ---------- Center area ---------- */
+  .center{ display:flex; flex-direction:column; min-height:50vh; }
+
+  /* Secondary toolbar (split controls). Hidden on mobile. */
+  .toolbar2{
+    display:flex; align-items:center; gap:10px; padding:10px;
+    border-bottom:1px solid var(--c-border);
+    background:linear-gradient(180deg, color-mix(in oklab, var(--acid-2) 12%, transparent), transparent);
+    flex-wrap:wrap;
+  }
+  .seg{ display:flex; border-radius:10px; overflow:hidden; border:1px solid var(--c-border); }
+  .seg button{
+    background:var(--c-panel); color:var(--muted);
+    padding:8px 10px; border:none; border-right:1px solid var(--c-border);
+    cursor:pointer; font:inherit;
+  }
+  .seg button:last-child{ border-right:none; }
+  .seg button.active{
+    color:var(--ink-invert);
+    background:linear-gradient(90deg, var(--acid-2), color-mix(in oklab, var(--acid-2) 60%, white));
+  }
+
+  .btn{
+    background:var(--c-btn); color:var(--ink); border:1px solid var(--c-border-strong);
+    border-radius:var(--control-r,10px); padding:8px 12px;
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer; transition:.18s;
+    box-shadow:var(--elev); font:inherit;
+  }
+  .btn:hover{ transform:translateY(-1px); box-shadow:var(--shadow-hover); }
+  .btn.warn{
+    background:linear-gradient(180deg, color-mix(in oklab, var(--warning) 28%, var(--c-btn)), var(--c-btn));
+    color:var(--warning); border-color:color-mix(in oklab, var(--warning) 55%, var(--c-border));
+  }
+
+  /* Multi-console grid */
+  .multiConsole{
+    flex:1; padding:10px; display:grid; gap:10px; height:100%;
+    grid-auto-flow:row; grid-auto-rows:1fr;
+    grid-template-rows:repeat(var(--rows,1), 1fr);
+  }
+  .split-1{ grid-template-columns:1fr; }
+  .split-2{ grid-template-columns:1fr 1fr; }
+  .split-3{ grid-template-columns:1fr 1fr 1fr; }
+  .split-4{ grid-template-columns:1fr 1fr; } /* 2x2 */
+
+  /* Console pane */
+  .pane{
+    position:relative; border:1px solid var(--c-border);
+    border-radius:12px; background:var(--grad-console);
+    display:flex; flex-direction:column;
+    box-shadow:inset 0 0 0 1px var(--c-border-muted);
+  }
+
+  /* Clean two-column header: title/meta | actions */
+  .paneHeader{
+    display:grid; grid-template-columns:1fr auto; align-items:center;
+    gap:10px; padding:8px 10px; border-bottom:1px solid var(--c-border);
+    background:linear-gradient(180deg, color-mix(in oklab, var(--acid-2) 8%, transparent), transparent);
+  }
+
+  /* Left side: dot + icon + stacked title/meta */
+  .paneTitle{
+    display:grid; grid-template-columns:auto auto 1fr; align-items:center; gap:10px; min-width:0;
+  }
+  .paneTitle .dot{ width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .paneIcon{ width:70px; height:70px; border-radius:6px; object-fit:cover; opacity:.95; }
+  .titleBlock{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .titleLine strong{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .metaLine{ display:flex; flex-wrap:wrap; gap:6px; }
+  .metaLine .chip{ border:1px solid var(--c-border-strong); background:var(--c-chip-bg); color:var(--muted); padding:3px 8px; border-radius:999px; }
+
+  /* Right side: actions wrap neatly */
+  .paneBtns{ display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+  .paneBtns .btn{ padding:6px 8px; font-size:.9rem; }
+
+  .paneLog{
+    flex:1; overflow:auto; padding:6px 8px;
+    font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size:.92rem;
+  }
+
+  /* Log colors */
+  .logline{ white-space:pre-wrap; word-break:break-word; padding:4px 6px; line-height:1.32; color:var(--ink); }
+  .logline.info{ color:#bfefff; }
+  .logline.ok{ color:#9ff7c5; }
+  .logline.warn{ color:#ffd27a; }
+  .logline.err{ color:#ff99b3; }
+  .logline.dim{ color:#6a8596; }
+
+  .paneHighlight{
+    box-shadow:0 0 0 2px var(--acid-2), 0 0 24px color-mix(in oklab, var(--acid-2) 55%, transparent) inset, 0 0 40px color-mix(in oklab, var(--acid-2) 35%, transparent);
+    animation:hi 900ms ease-out 1;
+  }
+  @keyframes hi{ 0%{transform:scale(1)} 50%{transform:scale(1.01)} 100%{transform:scale(1)} }
+
+  /* Arguments section */
+  .section{ padding:12px; border-bottom:1px dashed var(--c-border); }
+  .h{ font-weight:800; letter-spacing:.5px; color:var(--acid-2); }
+  .sub{ color:var(--muted); font-size:.9rem; }
+  .builder{ padding:12px; display:grid; gap:12px; }
+  .field{ display:grid; gap:6px; }
+  .label{ font-size:.85rem; color:var(--muted); }
+  .ctl, .select, .range{
+    background:var(--c-panel); color:var(--ink); border:1px solid var(--c-border-strong);
+    border-radius:var(--control-r,10px); padding:10px 12px; font:inherit;
+  }
+  .ctl:focus, .select:focus{ outline:none; box-shadow:0 0 0 2px color-mix(in oklab, var(--acid) 55%, transparent) inset; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; padding:10px; }
+  .chip2{ padding:6px 10px; border-radius:999px; background:var(--c-chip-bg); border:1px solid var(--c-border-hi); cursor:pointer; transition:.18s; }
+  .chip2:hover{ box-shadow:0 0 0 1px var(--c-border-hi) inset, 0 8px 22px var(--glow-weak); }
+
+  /* Mobile tweaks */
+  @media (max-width: 860px){
+    .toolbar2{ display:none !important; } /* hide toolbar in mobile */
+    .paneHeader{ grid-template-columns:1fr; row-gap:8px; }
+    .paneBtns{ justify-content:flex-start; }
+    .paneBtns .btn{ padding:5px 6px; font-size:.85rem; }
+    .main {
+        left: 350px;
+    }
+    .sidebar {
+        width: 350px;
+    }
+  }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- Sidebar content (sidebar frame is from global.css) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sideheader" id="sideheader">
+      <div class="tabs-container">
+        <button class="tab-btn active" data-page="attacks">Actions</button>
+        <button class="tab-btn" data-page="arguments">Arguments</button>
+      </div>
+      <div class="search">
+        <input class="input" id="searchInput" placeholder="Search actions..." />
+      </div>
+    </div>
+
+    <div class="sidecontent" id="sidecontent">
+      <!-- Actions tab -->
+      <div id="attacks-sidebar" class="sidebar-page" style="display:block">
+        <div class="list" id="actionsList"></div>
+      </div>
+
+      <!-- Arguments tab -->
+      <div id="arguments-sidebar" class="sidebar-page" style="display:none">
+        <div class="section">
+          <div class="h">Arguments</div>
+          <div class="sub">Auto-generated from action definitions</div>
+        </div>
+        <div class="builder" id="argBuilder"></div>
+        <div class="section">
+          <input id="freeArgs" class="ctl" placeholder="Additional arguments (e.g., --verbose --debug)" />
+        </div>
+        <div class="chips" id="presetChips"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main area (positioned by global.css) -->
+  <div class="main">
+    <main id="actionsLauncher">
+      <section class="center panel">
+        <div class="toolbar2">
+          <div class="spacer"></div>
+          <div class="seg" id="splitSeg">
+            <button data-split="1" class="active">1</button>
+            <button data-split="2">2</button>
+            <button data-split="3">3</button>
+            <button data-split="4">4</button>
+          </div>
+        </div>
+
+        <div class="multiConsole split-1" id="multiConsole"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+/* =========================================================
+   Actions Launcher — JS (queue removed)
+   ---------------------------------------------------------
+   • Forces single console on mobile and hides toolbar2.
+   • Clean pane header markup + better responsiveness.
+   • API endpoints kept: /list_scripts, /run_script, /stop_script, /get_script_output/:path
+   ========================================================= */
+
+const isMobile = () => window.matchMedia('(max-width: 860px)').matches;
+
+class ActionsLauncher{
+  constructor(){
+    this.actions = [];
+    this.activeAction = null;
+    this.runningActions = new Map();
+    this.logs = new Map();
+    this.split = 1;                     // forced to 1 on mobile
+    this.panes = [null, null, null, null];
+    this.assignTargetPaneIndex = null;
+    this.autoClearPane = {0:false,1:false,2:false,3:false};
+    this.filter = 'all';
+    this.pollingIntervals = new Map();
+    this.init();
+  }
+
+  async init(){
+    await this.loadActions();
+    this.setupEventListeners();
+    this.enforceMobileOnePane();         // always one pane on mobile
+    this.renderActions();
+    this.renderConsoles();
+    window.addEventListener('resize', this.onResizeDebounced.bind(this));
+  }
+
+  onResizeDebounced(){
+    clearTimeout(this._rz_t);
+    this._rz_t = setTimeout(()=>{
+      this.enforceMobileOnePane();
+      this.renderConsoles();
+    }, 120);
+  }
+
+  enforceMobileOnePane(){
+    if(isMobile()){
+      this.split = 1;
+      if(!this.panes[0] && this.activeAction){ this.panes[0] = this.activeAction.id; }
+      for(let i=1;i<this.panes.length;i++) this.panes[i] = null;
+      // Disable split buttons visually
+      document.querySelectorAll('#splitSeg button').forEach(b=>{
+        b.classList.toggle('active', b.dataset.split === '1');
+        b.disabled = true; b.style.opacity = .6; b.style.pointerEvents = 'none';
+      });
+    }else{
+      document.querySelectorAll('#splitSeg button').forEach(b=>{
+        b.disabled = false; b.style.opacity = ''; b.style.pointerEvents = '';
+      });
+    }
+  }
+
+  async loadActions(){
+    try{
+      const response = await fetch('/list_scripts');
+      const { status, data } = await response.json();
+
+      if(status === 'success' && Array.isArray(data)){
+        this.actions = data.map(action=>{
+          const raw = action.b_args ?? {};
+          let args = raw;
+          if(typeof raw === 'string'){ try{ args = JSON.parse(raw);}catch{ args = {}; } }
+
+          const id = action.b_module || (action.name ? action.name.replace(/\.py$/,'') : 'unknown');
+          const className = action.b_class || id;
+          const icon = action.b_icon || `/actions_icons/${className}.png`;
+
+          return {
+            id,
+            name: action.name || action.b_class || action.b_module || 'Unnamed',
+            module: action.b_module || action.module,
+            category: action.b_action || action.category || 'normal',
+            description: action.description || 'No description',
+            args,
+            status: 'ready',
+            path: action.path || action.module_path,
+            icon,
+            version: action.b_version,
+            author: action.b_author,
+            docsUrl: action.b_docs_url,
+            examples: action.b_examples
+          };
+        });
+      }else{
+        this.actions = [];
+      }
+    }catch(err){
+      console.error('Failed to load actions:', err);
+      this.actions = [];
+    }
+  }
+
+  setupEventListeners(){
+    // Search
+    const search = document.getElementById('searchInput');
+    if(search) search.addEventListener('input', ()=>this.renderActions());
+
+    // Sidebar tabs
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const page = btn.dataset.page;
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.sidebar-page').forEach(sp=>sp.style.display='none');
+        document.getElementById(page+'-sidebar').style.display='block';
+      });
+    });
+
+    // Split buttons (ignored on mobile)
+    document.querySelectorAll('#splitSeg button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        if(isMobile()){ this.enforceMobileOnePane(); return; }
+        document.querySelectorAll('#splitSeg button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        this.split = parseInt(btn.dataset.split, 10);
+        this.renderConsoles();
+      });
+    });
+  }
+
+  /* ---------- Sidebar: actions ---------- */
+  renderActions(){
+    const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+    const terms = q ? q.split(/\s+/).filter(Boolean) : [];
+
+    const filtered = this.actions.filter(action=>{
+      const matchesFilter = this.filter==='all' || (action.category||'').toLowerCase()===this.filter;
+      if(!matchesFilter) return false;
+      if(terms.length===0) return true;
+      const hay = [
+        action.name, action.description, action.module, action.id, action.author
+      ].concat(Array.isArray(action.tags)?action.tags:[])
+       .join(' ')
+       .toLowerCase();
+      return terms.every(t=>hay.includes(t));
+    });
+
+    const list = document.getElementById('actionsList');
+    if(!list) return;
+    list.innerHTML = filtered.map(a=>this.createActionRow(a)).join('');
+    this.attachActionHandlers('actionsList');
+  }
+
+  createActionRow(action){
+    const statusChip = this.getStatusChip(action.status);
+    const iconHtml = `
+      <img src="${action.icon}" class="ic-img" alt=""
+           onerror="this.onerror=null; this.src='/actions/actions_icons/default.png';" />
+    `;
+    return `
+      <div class="row" data-action="${action.id}">
+        <div class="ic">${iconHtml}</div>
+        <div>
+          <div class="name">${action.name}</div>
+          <div class="desc">${action.description}</div>
+        </div>
+        <div class="chip ${statusChip.class}">${statusChip.text}</div>
+      </div>
+    `;
+  }
+
+  attachActionHandlers(containerId){
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    container.querySelectorAll('.row').forEach(row=>{
+      const actionId = row.dataset.action;
+      row.draggable = true;
+
+      row.addEventListener('dragstart', e=>{
+        e.dataTransfer.setData('text/plain', actionId);
+      });
+
+      row.addEventListener('click', ()=>{
+        if(this.assignTargetPaneIndex!==null){
+          this.panes[this.assignTargetPaneIndex] = actionId;
+          this.clearAssignTarget();
+          this.renderConsoles();
+          return;
+        }
+        this.selectAction(actionId);
+      });
+    });
+  }
+
+  getStatusChip(status){
+    switch(status){
+      case 'running': return { class:'run', text:'Running' };
+      case 'success': return { class:'ok',  text:'Success' };
+      case 'error':   return { class:'err', text:'Error' };
+      default:        return { class:'',    text:'Ready' };
+    }
+  }
+
+  /* ---------- Arguments ---------- */
+  selectAction(actionId){
+    const action = this.actions.find(a=>a.id===actionId);
+    if(!action) return;
+
+    this.activeAction = action;
+    this.renderArguments(action);
+    this.renderPresets(action);
+
+    if(this.assignTargetPaneIndex!==null){
+      this.panes[this.assignTargetPaneIndex] = actionId;
+      this.clearAssignTarget();
+      this.renderConsoles();
+      return;
+    }
+    const paneIndex = this.panes.findIndex(p=>p===actionId);
+    if(paneIndex===-1){
+      const emptyIndex = this.panes.slice(0, this.split).findIndex(p=>!p);
+      this.panes[emptyIndex !== -1 ? emptyIndex : 0] = actionId;
+      this.renderConsoles();
+    }else{
+      this.highlightPane(paneIndex);
+    }
+  }
+
+  renderArguments(action){
+    const builder = document.getElementById('argBuilder');
+    if(!builder) return;
+
+    builder.innerHTML = '';
+
+    // Meta + Docs
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.gap = '10px';
+    header.style.marginBottom = '8px';
+
+    const meta = document.createElement('div');
+    meta.className = 'sub';
+    const bits = [];
+    if(action?.version) bits.push(`v${action.version}`);
+    if(action?.author)  bits.push(`by ${action.author}`);
+    meta.textContent = bits.join('  ·  ') || '';
+    header.appendChild(meta);
+
+    const right = document.createElement('div');
+    if(action?.docsUrl){
+      const a = document.createElement('a');
+      a.href = action.docsUrl;
+      a.target = '_blank'; a.rel='noopener noreferrer';
+      a.className = 'btn';
+      a.textContent = '📖 Docs';
+      right.appendChild(a);
+    }
+    header.appendChild(right);
+    builder.appendChild(header);
+
+    // Presets
+    const hasPresets = Array.isArray(action?.examples) && action.examples.length>0;
+    if(hasPresets){
+      const chipbar = document.createElement('div');
+      chipbar.style.display = 'flex';
+      chipbar.style.flexWrap = 'wrap';
+      chipbar.style.gap = '8px';
+      chipbar.style.margin = '2px 0 10px 0';
+
+      action.examples.forEach((preset, idx)=>{
+        const b = document.createElement('button');
+        b.className = 'chip2';
+        b.textContent = preset.name || preset.title || `Preset ${idx+1}`;
+        b.title = 'Apply this preset';
+        b.addEventListener('click', ()=>this.applyPreset(preset));
+        chipbar.appendChild(b);
+      });
+      builder.appendChild(chipbar);
+    }
+
+    // Fields
+    if(!action.args || Object.keys(action.args).length===0){
+      const empty = document.createElement('div');
+      empty.className = 'sub';
+      empty.textContent = 'No configurable arguments';
+      builder.appendChild(empty);
+      return;
+    }
+
+    Object.entries(action.args).forEach(([key, config])=>{
+      const field = document.createElement('div');
+      field.className = 'field';
+
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = config.label || key;
+      field.appendChild(label);
+
+      const input = this.createInput(key, config);
+      field.appendChild(input);
+
+      if(config.help){
+        const help = document.createElement('div');
+        help.className = 'sub';
+        help.textContent = config.help;
+        field.appendChild(help);
+      }
+
+      builder.appendChild(field);
+    });
+  }
+
+  createInput(key, config){
+    const type = config.type || 'text';
+    let input;
+    switch(type){
+      case 'select':
+        input = document.createElement('select');
+        input.className = 'select';
+        (config.choices || []).forEach(choice=>{
+          const option = document.createElement('option');
+          option.value = choice; option.textContent = choice;
+          if(choice === config.default) option.selected = true;
+          input.appendChild(option);
+        });
+        break;
+      case 'checkbox':
+        input = document.createElement('input');
+        input.type='checkbox'; input.className='ctl';
+        input.checked = config.default || false;
+        break;
+      case 'number':
+        input = document.createElement('input');
+        input.type='number'; input.className='ctl';
+        if(config.min !== undefined) input.min = config.min;
+        if(config.max !== undefined) input.max = config.max;
+        if(config.step !== undefined) input.step = config.step;
+        input.value = config.default || '';
+        break;
+      case 'slider':
+      case 'range':
+        input = document.createElement('input');
+        input.type='range'; input.className='range';
+        input.min = config.min || 0;
+        input.max = config.max || 100;
+        input.step = config.step || 1;
+        input.value = config.default || input.min;
+        break;
+      default:
+        input = document.createElement('input');
+        input.type='text'; input.className='ctl';
+        input.value = config.default || '';
+        input.placeholder = config.placeholder || '';
+    }
+    input.dataset.arg = key;
+    return input;
+  }
+
+  applyPreset(preset){
+    Object.entries(preset).forEach(([key,val])=>{
+      if(key==='name'||key==='title') return;
+      const container = document.getElementById('argBuilder');
+      if(!container) return;
+      const input = container.querySelector(`[data-arg="${key}"]`);
+      if(!input) return;
+      if(input.type==='checkbox') input.checked = !!val;
+      else input.value = val;
+    });
+  }
+
+  collectArguments(){
+    if(!this.activeAction) return '';
+    const args = [];
+    const builder = document.getElementById('argBuilder');
+    if(builder){
+      builder.querySelectorAll('[data-arg]').forEach(input=>{
+        const key = input.dataset.arg;
+        const flag = `--${key.replace(/_/g,'-')}`;
+        if(input.type==='checkbox'){
+          if(input.checked) args.push(flag);
+        }else{
+          const value = input.value.trim();
+          if(value){ args.push(flag); args.push(value); }
+        }
+      });
+    }
+    const freeArgs = document.getElementById('freeArgs')?.value || '';
+    if(freeArgs.trim()) args.push(...freeArgs.trim().split(' '));
+    return args.join(' ');
+  }
+
+  /* ---------- Consoles ---------- */
+  renderConsoles(){
+    const container = document.getElementById('multiConsole');
+    const effectiveSplit = isMobile() ? 1 : this.split;
+    container.className = `multiConsole split-${effectiveSplit}`;
+    container.innerHTML = '';
+
+    const rows = (effectiveSplit===4) ? 2 : 1;
+    container.style.setProperty('--rows', rows);
+
+    for(let i=0;i<effectiveSplit;i++){
+      const actionId = this.panes[i];
+      const action = actionId ? this.actions.find(a=>a.id===actionId) : null;
+
+      const pane = document.createElement('div');
+      pane.className='pane'; pane.dataset.index=i;
+
+      const statusColor = this.getStatusColor(action?.status);
+      const iconUrl = action?.icon || '/web/images/attack.png';
+      const hasMeta = !!(action && (action.docsUrl || action.author || action.version));
+
+      pane.innerHTML = `
+        <div class="paneHeader">
+          <!-- Left: status dot + icon + title/meta -->
+          <div class="paneTitle" title="${action ? (action.description||'') : ''}">
+            <span class="dot" style="background:${statusColor}"></span>
+            ${action ? `<img class="paneIcon" src="${iconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+            <div class="titleBlock">
+              <div class="titleLine">
+                <strong>${action ? action.name : '— Empty Pane —'}</strong>
+              </div>
+              ${
+                hasMeta
+                  ? `<div class="metaLine">
+                       ${action?.version ? `<span class="chip">v${action.version}</span>` : ''}
+                       ${action?.author  ? `<span class="chip">by ${action.author}</span>`   : ''}
+                     </div>`
+                  : ''
+              }
+            </div>
+          </div>
+
+          <!-- Right: actions -->
+          <div class="paneBtns">
+            ${
+              action
+                ? `
+                  ${action?.docsUrl ? `<a class="btn" href="${action.docsUrl}" target="_blank" rel="noopener">Docs</a>` : ''}
+                  <button class="btn" data-action="run" data-idx="${i}">Run</button>
+                  <button class="btn warn" data-action="stop" data-idx="${i}">Stop</button>
+                  <button class="btn" data-action="clear" data-idx="${i}">Clear</button>
+                  <button class="btn" data-action="export" data-idx="${i}">⬇ Export</button>
+                  <button class="btn ${this.autoClearPane[i] ? 'on':''}" data-action="toggleAuto" data-idx="${i}">
+                    ${this.autoClearPane[i] ? 'Auto-clear ON' : 'Auto-clear OFF'}
+                  </button>
+                `
+                : `<button class="btn" data-action="assign" data-idx="${i}">Assign</button>`
+            }
+          </div>
+        </div>
+
+        <div class="paneLog" id="paneLog-${i}">
+          ${this.renderLogs(actionId)}
+        </div>
+      `;
+
+      pane.querySelectorAll('[data-action]').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const idx = parseInt(btn.dataset.idx ?? i, 10);
+          switch(btn.dataset.action){
+            case 'run':   this.activeAction = action; this.runAction(idx); break;
+            case 'stop':  this.stopAction(actionId); break;
+            case 'clear': this.clearActionLogs(actionId); break;
+            case 'export':this.exportPaneLogs(idx); break;
+            case 'toggleAuto':
+              this.autoClearPane[idx] = !this.autoClearPane[idx];
+              btn.classList.toggle('on', this.autoClearPane[idx]);
+              btn.textContent = this.autoClearPane[idx] ? 'Auto-clear ON' : 'Auto-clear OFF';
+              break;
+            case 'assign': this.assignActionToPane(idx); break;
+          }
+        });
+      });
+
+      // Drag-to-assign
+      pane.addEventListener('dragover', e=>{ e.preventDefault(); pane.classList.add('paneHighlight'); });
+      pane.addEventListener('dragleave', ()=>pane.classList.remove('paneHighlight'));
+      pane.addEventListener('drop', e=>{
+        e.preventDefault(); pane.classList.remove('paneHighlight');
+        const droppedId = e.dataTransfer.getData('text/plain'); if(!droppedId) return;
+        this.panes[i] = droppedId; this.renderConsoles();
+      });
+
+      container.appendChild(pane);
+      pane.querySelector(`#paneLog-${i}`)?.addEventListener('click', ()=>this.setAssignTarget(i));
+    }
+  }
+
+  renderLogs(actionId){
+    if(!actionId) return '<div class="logline dim">Select an action to see logs</div>';
+    const logs = this.logs.get(actionId) || [];
+    if(logs.length===0) return '<div class="logline dim">Waiting for logs...</div>';
+    return logs.map(log=>this.formatLogLine(log)).join('');
+  }
+  formatLogLine(log){
+    const timestamp = new Date().toLocaleTimeString();
+    const cssClass = this.getLogClass(log);
+    return `<div class="logline ${cssClass}">[${timestamp}] ${this.escapeHtml(log)}</div>`;
+  }
+  getLogClass(log){
+    const lower = String(log).toLowerCase();
+    if(lower.includes('error') || lower.includes('failed')) return 'err';
+    if(lower.includes('warning') || lower.includes('warn')) return 'warn';
+    if(lower.includes('success') || lower.includes('complete')) return 'ok';
+    if(lower.includes('info')) return 'info';
+    return 'dim';
+  }
+  escapeHtml(text){
+    const map = { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' };
+    return String(text).replace(/[&<>"']/g, m=>map[m]);
+  }
+  getStatusColor(status){
+    switch(status){
+      case 'running': return 'var(--acid)';
+      case 'success': return 'var(--ok)';
+      case 'error':   return 'var(--danger)';
+      default:        return 'var(--acid-2)';
+    }
+  }
+
+  clearActionLogs(actionId){
+    this.logs.set(actionId, []); this.renderConsoles();
+  }
+
+  exportPaneLogs(paneIndex){
+    const actionId = this.panes[paneIndex]; if(!actionId) return;
+    const action = this.actions.find(a=>a.id===actionId);
+    const logs = this.logs.get(actionId) || [];
+    const blob = new Blob([logs.join('\n')], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(action?.name || 'pane')}_logs_${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  highlightPane(index){
+    const pane = document.querySelector(`.pane[data-index="${index}"]`);
+    if(pane){ pane.classList.add('paneHighlight'); setTimeout(()=>pane.classList.remove('paneHighlight'), 900); }
+  }
+
+  setAssignTarget(paneIndex){
+    this.assignTargetPaneIndex = paneIndex;
+    document.querySelectorAll('.pane').forEach(el=>el.classList.remove('paneHighlight'));
+    const pane = document.querySelector(`.pane[data-index="${paneIndex}"]`);
+    if(pane) pane.classList.add('paneHighlight');
+  }
+  clearAssignTarget(){
+    this.assignTargetPaneIndex = null;
+    document.querySelectorAll('.pane').forEach(el=>el.classList.remove('paneHighlight'));
+  }
+
+  /* ---------- Run / Stop / Poll ---------- */
+  async runAction(paneIndex=null){
+    if(!this.activeAction) return;
+    const args = this.collectArguments();
+    const action = this.activeAction;
+
+    if(paneIndex!==null && this.autoClearPane[paneIndex]){
+      this.logs.set(action.id, []);
+      const logEl = document.getElementById(`paneLog-${paneIndex}`);
+      if(logEl) logEl.innerHTML = '';
+    }
+
+    action.status = 'running';
+    this.runningActions.set(action.id, {status:'running', process:null});
+    this.renderActions(); this.renderConsoles();
+
+    if(!this.logs.has(action.id)) this.logs.set(action.id, []);
+    this.logs.get(action.id).push(`Starting ${action.name}...`);
+
+    try{
+      const response = await fetch('/run_script', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ script_name: action.module || action.id, args })
+      });
+      const data = await response.json();
+      if(data.status==='success'){ this.startOutputPolling(action.id); }
+      else{ throw new Error(data.message || 'Run failed'); }
+    }catch(err){
+      action.status = 'error';
+      this.logs.get(action.id).push(`Error: ${err.message}`);
+      this.runningActions.delete(action.id);
+      this.renderActions(); this.renderConsoles();
+    }
+  }
+
+  async stopAction(actionId){
+    const id = actionId || this.activeAction?.id; if(!id) return;
+    try{
+      const action = this.actions.find(a=>a.id===id); if(!action) return;
+      const response = await fetch('/stop_script', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ script_name: action.path })
+      });
+      const data = await response.json();
+      if(data.status==='success'){
+        action.status = 'ready';
+        this.runningActions.delete(id);
+        this.stopOutputPolling(id);
+        this.logs.get(id)?.push('Script stopped by user');
+        this.renderActions(); this.renderConsoles();
+      }
+    }catch(err){ console.error('Failed to stop action:', err); }
+  }
+
+  startOutputPolling(actionId){
+    const poll = async ()=>{
+      try{
+        const action = this.actions.find(a=>a.id===actionId); if(!action) return;
+        const response = await fetch(`/get_script_output/${encodeURIComponent(action.path)}`);
+        const data = await response.json();
+
+        if(data.status==='success'){
+          const output = data.data.output || [];
+          if(output.length>0){
+            if(!this.logs.has(actionId)) this.logs.set(actionId, []);
+            this.logs.set(actionId, output);
+            this.updatePaneLog(actionId);
+          }
+          if(data.data.is_running){
+            this.pollingIntervals.set(actionId, setTimeout(poll, 1000));
+          }else{
+            action.status = 'success';
+            this.runningActions.delete(actionId);
+            this.stopOutputPolling(actionId);
+            this.logs.get(actionId)?.push('Script completed successfully');
+            this.renderActions(); this.renderConsoles();
+          }
+        }
+      }catch(err){
+        console.error('Polling error:', err);
+        this.stopOutputPolling(actionId);
+      }
+    };
+    poll();
+  }
+
+  stopOutputPolling(actionId){
+    const t = this.pollingIntervals.get(actionId);
+    if(t){ clearTimeout(t); this.pollingIntervals.delete(actionId); }
+  }
+
+  updatePaneLog(actionId){
+    const paneIndex = this.panes.findIndex(p=>p===actionId);
+    if(paneIndex===-1) return;
+    const logEl = document.getElementById(`paneLog-${paneIndex}`);
+    if(logEl){
+      logEl.innerHTML = this.renderLogs(actionId);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+  }
+}
+
+/* Boot */
+document.addEventListener('DOMContentLoaded', ()=>{
+  window.actionsLauncher = new ActionsLauncher();
+});
+  </script>
+</body>
+</html>

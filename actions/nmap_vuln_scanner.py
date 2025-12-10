@@ -1,188 +1,408 @@
-# nmap_vuln_scanner.py
-# This script performs vulnerability scanning using Nmap on specified IP addresses.
-# It scans for vulnerabilities on various ports and saves the results and progress.
+"""
+Vulnerability Scanner Action
+Scanne ultra-rapidement CPE (+ CVE via vulners si dispo),
+avec fallback "lourd" optionnel.
+"""
 
-import os
-import pandas as pd
-import subprocess
+import nmap
+import json
 import logging
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from rich.console import Console
-from rich.progress import Progress, BarColumn, TextColumn
+from typing import Dict, List, Set, Any, Optional
+from datetime import datetime, timedelta
+
 from shared import SharedData
 from logger import Logger
 
-logger = Logger(name="nmap_vuln_scanner.py", level=logging.INFO)
+logger = Logger(name="NmapVulnScanner.py", level=logging.DEBUG)
 
 b_class = "NmapVulnScanner"
 b_module = "nmap_vuln_scanner"
-b_status = "vuln_scan"
+b_status = "NmapVulnScanner"
 b_port = None
 b_parent = None
+b_action = "normal"
+b_service = []
+b_trigger  = "on_port_change"
+b_requires = '{"action":"NetworkScanner","status":"success","scope":"global"}'
+b_priority = 11
+b_cooldown   = 0            
+b_enabled = 1
+b_rate_limit = None
+
+
 
 class NmapVulnScanner:
-    """
-    This class handles the Nmap vulnerability scanning process.
-    """
-    def __init__(self, shared_data):
+    """Scanner de vulnérabilités via nmap (mode rapide CPE/CVE)."""
+    
+    def __init__(self, shared_data: SharedData):
         self.shared_data = shared_data
-        self.scan_results = []
-        self.summary_file = self.shared_data.vuln_summary_file
-        self.create_summary_file()
-        logger.debug("NmapVulnScanner initialized.")
+        self.nm = nmap.PortScanner()
+        logger.info("NmapVulnScanner initialized")
 
-    def create_summary_file(self):
-        """
-        Creates a summary file for vulnerabilities if it does not exist.
-        """
-        if not os.path.exists(self.summary_file):
-            os.makedirs(self.shared_data.vulnerabilities_dir, exist_ok=True)
-            df = pd.DataFrame(columns=["IP", "Hostname", "MAC Address", "Port", "Vulnerabilities"])
-            df.to_csv(self.summary_file, index=False)
+    # ---------------------------- Public API ---------------------------- #
 
-    def update_summary_file(self, ip, hostname, mac, port, vulnerabilities):
-        """
-        Updates the summary file with the scan results.
-        """
+    def execute(self, ip: str, port: str, row: Dict, status_key: str) -> str:
         try:
-            # Read existing data
-            df = pd.read_csv(self.summary_file)
+            logger.info(f"🔍 Starting vulnerability scan for {ip}")
+            self.shared_data.bjorn_orch_status = "NmapVulnScanner"
+
+            # 1) metadata depuis la queue
+            meta = {}
+            try:
+                meta = json.loads(row.get('metadata') or '{}')
+            except Exception:
+                pass
+
+            # 2) récupérer MAC et TOUS les ports de l'hôte
+            mac = row.get("MAC Address") or row.get("mac_address") or ""
             
-            # Create new data entry
-            new_data = pd.DataFrame([{"IP": ip, "Hostname": hostname, "MAC Address": mac, "Port": port, "Vulnerabilities": vulnerabilities}])
+            # ✅ FORCER la récupération de TOUS les ports depuis la DB
+            ports_str = ""
+            if mac:
+                r = self.shared_data.db.query(
+                    "SELECT ports FROM hosts WHERE mac_address=? LIMIT 1", (mac,)
+                )
+                if r and r[0].get('ports'):
+                    ports_str = r[0]['ports']
             
-            # Append new data
-            df = pd.concat([df, new_data], ignore_index=True)
+            # Fallback sur les métadonnées si besoin
+            if not ports_str:
+                ports_str = (
+                    row.get("Ports") or row.get("ports") or
+                    meta.get("ports_snapshot") or ""
+                )
+
+            if not ports_str:
+                logger.warning(f"⚠️ No ports to scan for {ip}")
+                return 'failed'
+
+            ports = [p.strip() for p in ports_str.split(';') if p.strip()]
+            logger.debug(f"📋 Found {len(ports)} ports for {ip}: {ports[:5]}...")
+
+            # ✅ FIX : Ne filtrer QUE si config activée ET déjà scanné
+            if self.shared_data.config.get('vuln_rescan_on_change_only', False):
+                if self._has_been_scanned(mac):
+                    original_count = len(ports)
+                    ports = self._filter_ports_already_scanned(mac, ports)
+                    logger.debug(f"🔄 Filtered {original_count - len(ports)} already-scanned ports")
+                    
+                    if not ports:
+                        logger.info(f"✅ No new/changed ports to scan for {ip}")
+                        return 'success'
             
-            # Remove duplicates based on IP and MAC Address, keeping the last occurrence
-            df.drop_duplicates(subset=["IP", "MAC Address"], keep='last', inplace=True)
+            # Scanner (mode rapide par défaut)
+            logger.info(f"🚀 Starting nmap scan on {len(ports)} ports for {ip}")
+            findings = self.scan_vulnerabilities(ip, ports)
             
-            # Save the updated data back to the summary file
-            df.to_csv(self.summary_file, index=False)
-        except Exception as e:
-            logger.error(f"Error updating summary file: {e}")
-
-
-    def scan_vulnerabilities(self, ip, hostname, mac, ports):
-        combined_result = ""
-        success = True  # Initialize to True, will become False if an error occurs
-        try:
-            self.shared_data.bjornstatustext2 = ip
-
-            # Proceed with scanning if ports are not already scanned
-            logger.info(f"Scanning {ip} on ports {','.join(ports)} for vulnerabilities with aggressivity {self.shared_data.nmap_scan_aggressivity}")
-            result = subprocess.run(
-                ["nmap", self.shared_data.nmap_scan_aggressivity, "-sV", "--script", "vulners.nse", "-p", ",".join(ports), ip],
-                capture_output=True, text=True
-            )
-            combined_result += result.stdout
-
-            vulnerabilities = self.parse_vulnerabilities(result.stdout)
-            self.update_summary_file(ip, hostname, mac, ",".join(ports), vulnerabilities)
-        except Exception as e:
-            logger.error(f"Error scanning {ip}: {e}")
-            success = False  # Mark as failed if an error occurs
-
-        return combined_result if success else None
-
-    def execute(self, ip, row, status_key):
-        """
-        Executes the vulnerability scan for a given IP and row data.
-        """
-        self.shared_data.bjornorch_status = "NmapVulnScanner"
-        ports = row["Ports"].split(";")
-        scan_result = self.scan_vulnerabilities(ip, row["Hostnames"], row["MAC Address"], ports)
-
-        if scan_result is not None:
-            self.scan_results.append((ip, row["Hostnames"], row["MAC Address"]))
-            self.save_results(row["MAC Address"], ip, scan_result)
+            # Persistance (split CVE/CPE)
+            self.save_vulnerabilities(mac, ip, findings)
+            logger.success(f"✅ Vuln scan done on {ip}: {len(findings)} entries")
             return 'success'
+                
+        except Exception as e:
+            logger.error(f"❌ NmapVulnScanner failed for {ip}: {e}")
+            return 'failed'
+
+    def _has_been_scanned(self, mac: str) -> bool:
+        """Vérifie si l'hôte a déjà été scanné au moins une fois."""
+        rows = self.shared_data.db.query("""
+            SELECT 1 FROM action_queue
+            WHERE mac_address=? AND action_name='NmapVulnScanner' 
+            AND status IN ('success', 'failed')
+            LIMIT 1
+        """, (mac,))
+        return bool(rows)
+
+    def _filter_ports_already_scanned(self, mac: str, ports: List[str]) -> List[str]:
+        """
+        Retourne la liste des ports à scanner en excluant ceux déjà scannés récemment.
+        """
+        if not ports:
+            return []
+
+        # Ports déjà couverts par detected_software (is_active=1)
+        rows = self.shared_data.db.query("""
+            SELECT port, last_seen
+            FROM detected_software
+            WHERE mac_address=? AND is_active=1 AND port IS NOT NULL
+        """, (mac,))
+        seen = {}
+        for r in rows:
+            try:
+                p = str(r['port'])
+                ls = r.get('last_seen')
+                seen[p] = ls
+            except Exception:
+                pass
+
+        ttl = int(self.shared_data.config.get('vuln_rescan_ttl_seconds', 0) or 0)
+        if ttl > 0:
+            cutoff = datetime.utcnow() - timedelta(seconds=ttl)
+            def fresh(port: str) -> bool:
+                ls = seen.get(port)
+                if not ls:
+                    return False
+                try:
+                    dt = datetime.fromisoformat(ls.replace('Z',''))
+                    return dt >= cutoff
+                except Exception:
+                    return True
+            return [p for p in ports if (p not in seen) or (not fresh(p))]
         else:
-            return 'success' # considering failed as success as we just need to scan vulnerabilities once
-            # return 'failed'
+            # Sans TTL: si déjà scanné/présent actif => on skip
+            return [p for p in ports if p not in seen]
 
-    def parse_vulnerabilities(self, scan_result):
-        """
-        Parses the Nmap scan result to extract vulnerabilities.
-        """
-        vulnerabilities = set()
-        capture = False
-        for line in scan_result.splitlines():
-            if "VULNERABLE" in line or "CVE-" in line or "*EXPLOIT*" in line:
-                capture = True
-            if capture:
-                if line.strip() and not line.startswith('|_'):
-                    vulnerabilities.add(line.strip())
-                else:
-                    capture = False
-        return "; ".join(vulnerabilities)
+    # ---------------------------- Scanning ------------------------------ #
 
-    def save_results(self, mac_address, ip, scan_result):
-        """
-        Saves the detailed scan results to a file.
-        """
+    def scan_vulnerabilities(self, ip: str, ports: List[str]) -> List[Dict]:
+        """Mode rapide CPE/CVE ou fallback lourd."""
+        fast = bool(self.shared_data.config.get('vuln_fast', True))
+        use_vulners = bool(self.shared_data.config.get('nse_vulners', False))
+        max_ports = int(self.shared_data.config.get('vuln_max_ports', 10 if fast else 20))
+
+        p_list = [str(p).split('/')[0] for p in ports if str(p).strip()]
+        port_list = ','.join(p_list[:max_ports]) if p_list else ''
+
+        if not port_list:
+            logger.warning("No valid ports for scan")
+            return []
+
+        if fast:
+            return self._scan_fast_cpe_cve(ip, port_list, use_vulners)
+        else:
+            return self._scan_heavy(ip, port_list)
+
+    def _scan_fast_cpe_cve(self, ip: str, port_list: str, use_vulners: bool) -> List[Dict]:
+        """Scan rapide pour récupérer CPE et (option) CVE via vulners."""
+        vulns: List[Dict] = []
+
+        args = "-sV --version-light -T4 --max-retries 1 --host-timeout 30s --script-timeout 10s"
+        if use_vulners:
+            args += " --script vulners --script-args mincvss=0.0"
+
+        logger.info(f"[FAST] nmap {ip} -p {port_list} ({args})")
         try:
-            sanitized_mac_address = mac_address.replace(":", "")
-            result_dir = self.shared_data.vulnerabilities_dir
-            os.makedirs(result_dir, exist_ok=True)
-            result_file = os.path.join(result_dir, f"{sanitized_mac_address}_{ip}_vuln_scan.txt")
-            
-            # Open the file in write mode to clear its contents if it exists, then close it
-            if os.path.exists(result_file):
-                open(result_file, 'w').close()
-            
-            # Write the new scan result to the file
-            with open(result_file, 'w') as file:
-                file.write(scan_result)
-            
-            logger.info(f"Results saved to {result_file}")
+            self.nm.scan(hosts=ip, ports=port_list, arguments=args)
         except Exception as e:
-            logger.error(f"Error saving scan results for {ip}: {e}")
+            logger.error(f"Fast scan failed to start: {e}")
+            return vulns
 
+        if ip not in self.nm.all_hosts():
+            return vulns
 
-    def save_summary(self):
-        """
-        Saves a summary of all scanned vulnerabilities to a final summary file.
-        """
+        host = self.nm[ip]
+
+        for proto in host.all_protocols():
+            for port in host[proto].keys():
+                port_info = host[proto][port]
+                service = port_info.get('name', '') or ''
+
+                # 1) CPE depuis -sV
+                cpe_values = self._extract_cpe_values(port_info)
+                for cpe in cpe_values:
+                    vulns.append({
+                        'port': port,
+                        'service': service,
+                        'vuln_id': f"CPE:{cpe}",
+                        'script': 'service-detect',
+                        'details': f"CPE detected: {cpe}"[:500]
+                    })
+
+                # 2) CVE via script 'vulners' (si actif)
+                try:
+                    script_out = (port_info.get('script') or {}).get('vulners')
+                    if script_out:
+                        for cve in self.extract_cves(script_out):
+                            vulns.append({
+                                'port': port,
+                                'service': service,
+                                'vuln_id': cve,
+                                'script': 'vulners',
+                                'details': str(script_out)[:500]
+                            })
+                except Exception:
+                    pass
+
+        return vulns
+
+    def _scan_heavy(self, ip: str, port_list: str) -> List[Dict]:
+        """Ancienne stratégie (plus lente) avec catégorie vuln, etc."""
+        vulnerabilities: List[Dict] = []
+        vuln_scripts = [
+            'vuln','exploit','http-vuln-*','smb-vuln-*',
+            'ssl-*','ssh-*','ftp-vuln-*','mysql-vuln-*',
+        ]
+        script_arg = ','.join(vuln_scripts)
+
+        args = f"-sV --script={script_arg} -T3 --script-timeout 20s"
+        logger.info(f"[HEAVY] nmap {ip} -p {port_list} ({args})")
         try:
-            final_summary_file = os.path.join(self.shared_data.vulnerabilities_dir, "final_vulnerability_summary.csv")
-            df = pd.read_csv(self.summary_file)
-            summary_data = df.groupby(["IP", "Hostname", "MAC Address"])["Vulnerabilities"].apply(lambda x: "; ".join(set("; ".join(x).split("; ")))).reset_index()
-            summary_data.to_csv(final_summary_file, index=False)
-            logger.info(f"Summary saved to {final_summary_file}")
+            self.nm.scan(hosts=ip, ports=port_list, arguments=args)
         except Exception as e:
-            logger.error(f"Error saving summary: {e}")
+            logger.error(f"Heavy scan failed to start: {e}")
+            return vulnerabilities
 
-if __name__ == "__main__":
-    shared_data = SharedData()
-    try:
-        nmap_vuln_scanner = NmapVulnScanner(shared_data)
-        logger.info("Starting vulnerability scans...")
+        if ip in self.nm.all_hosts():
+            host = self.nm[ip]
+            discovered_ports: Set[str] = set()
 
-        # Load the netkbfile and get the IPs to scan
-        ips_to_scan = shared_data.read_data()  # Use your existing method to read the data
+            for proto in host.all_protocols():
+                for port in host[proto].keys():
+                    discovered_ports.add(str(port))
+                    port_info = host[proto][port]
+                    service = port_info.get('name', '') or ''
 
-        # Execute the scan on each IP with concurrency
-        with Progress(
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            "[progress.percentage]{task.percentage:>3.1f}%",
-            console=Console()
-        ) as progress:
-            task = progress.add_task("Scanning vulnerabilities...", total=len(ips_to_scan))
-            futures = []
-            with ThreadPoolExecutor(max_workers=2) as executor:  # Adjust the number of workers for RPi Zero
-                for row in ips_to_scan:
-                    if row["Alive"] == '1':  # Check if the host is alive
-                        ip = row["IPs"]
-                        futures.append(executor.submit(nmap_vuln_scanner.execute, ip, row, b_status))
+                    if 'script' in port_info:
+                        for script_name, output in (port_info.get('script') or {}).items():
+                            for cve in self.extract_cves(str(output)):
+                                vulnerabilities.append({
+                                    'port': port,
+                                    'service': service,
+                                    'vuln_id': cve,
+                                    'script': script_name,
+                                    'details': str(output)[:500]
+                                })
 
-                for future in as_completed(futures):
-                    progress.update(task, advance=1)
+            if bool(self.shared_data.config.get('scan_cpe', False)):
+                ports_for_cpe = list(discovered_ports) if discovered_ports else port_list.split(',')
+                cpes = self.scan_cpe(ip, ports_for_cpe[:10])
+                vulnerabilities.extend(cpes)
 
-        nmap_vuln_scanner.save_summary()
-        logger.info(f"Total scans performed: {len(nmap_vuln_scanner.scan_results)}")
-        exit(len(nmap_vuln_scanner.scan_results))
-    except Exception as e:
-        logger.error(f"Error: {e}")
+        return vulnerabilities
+
+    # ---------------------------- Helpers -------------------------------- #
+
+    def _extract_cpe_values(self, port_info: Dict[str, Any]) -> List[str]:
+        """Normalise tous les formats possibles de CPE renvoyés par python-nmap."""
+        cpe = port_info.get('cpe')
+        if not cpe:
+            return []
+        if isinstance(cpe, str):
+            parts = [x.strip() for x in cpe.splitlines() if x.strip()]
+            return parts or [cpe]
+        if isinstance(cpe, (list, tuple, set)):
+            return [str(x).strip() for x in cpe if str(x).strip()]
+        try:
+            return [str(cpe).strip()] if str(cpe).strip() else []
+        except Exception:
+            return []
+
+    def extract_cves(self, text: str) -> List[str]:
+        """Extrait les identifiants CVE d'un texte."""
+        import re
+        if not text:
+            return []
+        cve_pattern = r'CVE-\d{4}-\d{4,7}'
+        return re.findall(cve_pattern, str(text), re.IGNORECASE)
+
+    def scan_cpe(self, ip: str, ports: List[str]) -> List[Dict]:
+        """(Fallback lourd) Scan CPE détaillé si demandé."""
+        cpe_vulns: List[Dict] = []
+        try:
+            port_list = ','.join([str(p) for p in ports if str(p).strip()])
+            if not port_list:
+                return cpe_vulns
+
+            args = "-sV --version-all -T3 --max-retries 2 --host-timeout 45s"
+            logger.info(f"[CPE] nmap {ip} -p {port_list} ({args})")
+            self.nm.scan(hosts=ip, ports=port_list, arguments=args)
+            
+            if ip in self.nm.all_hosts():
+                host = self.nm[ip]
+                for proto in host.all_protocols():
+                    for port in host[proto].keys():
+                        port_info = host[proto][port]
+                        service = port_info.get('name', '') or ''
+                        for cpe in self._extract_cpe_values(port_info):
+                            cpe_vulns.append({
+                                'port': port,
+                                'service': service,
+                                'vuln_id': f"CPE:{cpe}",
+                                'script': 'version-scan',
+                                'details': f"CPE detected: {cpe}"[:500]
+                            })
+        except Exception as e:
+            logger.error(f"CPE scan error: {e}")
+        return cpe_vulns
+    
+    # ---------------------------- Persistence ---------------------------- #
+
+    def save_vulnerabilities(self, mac: str, ip: str, findings: List[Dict]):
+        """Sépare CPE et CVE, met à jour les statuts + enregistre les nouveautés."""
+        
+        # Récupérer le hostname depuis la DB
+        hostname = None
+        try:
+            host_row = self.shared_data.db.query_one(
+                "SELECT hostnames FROM hosts WHERE mac_address=? LIMIT 1", 
+                (mac,)
+            )
+            if host_row and host_row.get('hostnames'):
+                hostname = host_row['hostnames'].split(';')[0]
+        except Exception as e:
+            logger.debug(f"Could not fetch hostname: {e}")
+        
+        # Grouper par port avec les infos complètes
+        findings_by_port = {}
+        for f in findings:
+            port = int(f.get('port', 0) or 0)
+            
+            if port not in findings_by_port:
+                findings_by_port[port] = {
+                    'cves': set(), 
+                    'cpes': set(), 
+                    'findings': []
+                }
+            
+            findings_by_port[port]['findings'].append(f)
+            
+            vid = str(f.get('vuln_id', ''))
+            if vid.upper().startswith('CVE-'):
+                findings_by_port[port]['cves'].add(vid)
+            elif vid.upper().startswith('CPE:'):
+                findings_by_port[port]['cpes'].add(vid.split(':', 1)[1])
+            elif vid.lower().startswith('cpe:'):
+                findings_by_port[port]['cpes'].add(vid)
+
+        # 1) Traiter les CVE par port
+        for port, data in findings_by_port.items():
+            if data['cves']:
+                for cve in data['cves']:
+                    try:
+                        existing = self.shared_data.db.query_one(
+                            "SELECT id FROM vulnerabilities WHERE mac_address=? AND vuln_id=? AND port=? LIMIT 1",
+                            (mac, cve, port)
+                        )
+                        
+                        if existing:
+                            self.shared_data.db.execute("""
+                                UPDATE vulnerabilities 
+                                SET ip=?, hostname=?, last_seen=CURRENT_TIMESTAMP, is_active=1
+                                WHERE mac_address=? AND vuln_id=? AND port=?
+                            """, (ip, hostname, mac, cve, port))
+                        else:
+                            self.shared_data.db.execute("""
+                                INSERT INTO vulnerabilities(mac_address, ip, hostname, port, vuln_id, is_active)
+                                VALUES(?,?,?,?,?,1)
+                            """, (mac, ip, hostname, port, cve))
+                        
+                        logger.debug(f"Saved CVE {cve} for {ip}:{port}")
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to save CVE {cve}: {e}")
+
+        # 2) Traiter les CPE
+        for port, data in findings_by_port.items():
+            for cpe in data['cpes']:
+                try:
+                    self.shared_data.db.add_detected_software(
+                        mac_address=mac, 
+                        cpe=cpe, 
+                        ip=ip, 
+                        hostname=hostname, 
+                        port=port
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to save CPE {cpe}: {e}")
+
+        logger.info(f"Saved vulnerabilities for {ip} ({mac}): {len(findings_by_port)} ports processed")

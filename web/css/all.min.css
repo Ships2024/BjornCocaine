@@ -1,0 +1,63 @@
+/* Font Awesome Base Styles */
+.fa, .fas {
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    line-height: 1;
+}
+
+/* Icon Definitions */
+.fa-th-list:before {
+    content: "\f00b"; /* Icon for toggle between list and grid view */
+}
+.fa-object-group:before {
+    content: "\f247"; /* Icon for multi-selection */
+}
+.fa-folder-plus:before {
+    content: "\f65e"; /* Icon for adding a new folder */
+}
+.fa-edit:before {
+    content: "\f044"; /* Icon for renaming */
+}
+.fa-arrows-alt:before {
+    content: "\f0b2"; /* Icon for moving */
+}
+.fa-trash:before {
+    content: "\f1f8"; /* Icon for deletion */
+}
+.fa-folder:before {
+    content: "\f07b"; /* Icon for folder */
+}
+.fa-times:before {
+    content: "\f00d"; /* Icon for cancel in modals */
+}
+.fa-check:before {
+    content: "\f00c"; /* Icon for confirmation in modals */
+}
+
+/* Font Faces */
+@font-face {
+    font-family: "Font Awesome 5 Free";
+    font-style: normal;
+    font-weight: 400;
+    font-display: block;
+    src: url(../css/fonts/fa-regular-400.woff2) format("woff2"),
+         url(../css/fonts/fa-regular-400.woff) format("woff"),
+         url(../css/fonts/fa-regular-400.ttf) format("truetype");
+}
+@font-face {
+    font-family: "Font Awesome 5 Free";
+    font-style: normal;
+    font-weight: 900;
+    font-display: block;
+    src: url(../css/fonts/fa-solid-900.woff2) format("woff2"),
+         url(../css/fonts/fa-solid-900.woff) format("woff"),
+         url(../css/fonts/fa-solid-900.ttf) format("truetype");
+}
+.fas {
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+}

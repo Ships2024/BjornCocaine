@@ -1,55 +1,981 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bjorn Cyberviking - Network</title>
-    <link rel="icon" href="web/images/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="web/css/styles.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
-    <script src="web/scripts/network.js" defer></script>
+  <meta charset="UTF-8" />
+  <title>Bjorn Cyberviking - Network Visualization</title>
+  <link rel="icon" href="/web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/web/css/global.css" />
+  <script src="web/js/d3.v7.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#333" />
+  <script src="web/js/global.js" defer></script>
 
+  <style>
+    /* Page base on global tokens */
+    body {
+      background: var(--grad-bg-1), var(--grad-bg-2), var(--bg);
+      overflow: hidden;
+    }
+
+    .main {
+      padding: 16px;
+      position: relative;
+      z-index: 2;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ======================= Toolbar (sticky, uniformisée) ======================= */
+    .nv-toolbar-wrap {
+      position: sticky;
+      top: 1px;
+      margin: 10px;
+      z-index: 500;
+      backdrop-filter: saturate(1.1) blur(6px);
+    }
+
+    .nv-toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      background: color-mix(in oklab, var(--panel) 88%, transparent);
+      border: 1px solid var(--c-border-strong);
+      border-radius: 16px;
+      padding: 8px 10px;
+      box-shadow: var(--shadow);
+    }
+
+    /* Search */
+    .nv-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel);
+      border: 1px solid var(--c-border-strong);
+      border-radius: 12px;
+      padding: 6px 10px;
+      min-width: 240px;
+      box-shadow: var(--shadow);
+    }
+
+    .nv-search svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--ink);
+      opacity: .9;
+    }
+
+    .nv-search input {
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--ink);
+      font-weight: 700;
+      width: 100%;
+    }
+
+    /* Segmented control (Table / Map) */
+    .segmented {
+      display: inline-flex;
+      background: var(--panel);
+      border: 1px solid var(--c-border-strong);
+      border-radius: 999px;
+      padding: 4px;
+      box-shadow: var(--shadow);
+    }
+
+    .segmented button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease, transform .1s ease;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      background: var(--grad-card);
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px var(--c-border-hi), 0 6px 24px var(--glow-weak);
+      transform: translateY(-1px);
+    }
+
+    /* Switch Show hostname */
+    .nv-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      background: var(--panel);
+      border: 1px solid var(--c-border-strong);
+      border-radius: 999px;
+      padding: 6px 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .nv-switch input {
+      display: none;
+    }
+
+    .nv-switch .track {
+      width: 44px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--c-panel-2);
+      position: relative;
+      border: 1px solid var(--c-border);
+    }
+
+    .nv-switch .thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--ink);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .4);
+      transition: left .18s ease, background .18s ease;
+    }
+
+    .nv-switch input:checked~.track .thumb {
+      left: 22px;
+      background: var(--acid);
+    }
+
+    .nv-switch[data-on="true"] {
+      color: var(--ink);
+    }
+
+    /* ======================= Table ======================= */
+    .table-wrap {
+      border: 1px solid var(--c-border-strong);
+      border-radius: 14px;
+      overflow: auto;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      flex: 1;
+    }
+
+    table.network-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 .5rem;
+      table-layout: fixed;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--c-panel);
+      color: var(--ink);
+      border-bottom: 1px solid var(--c-border-strong);
+      padding: 10px;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+      border-radius: 8px;
+    }
+
+    tbody tr {
+      background: var(--grad-card, linear-gradient(145deg, color-mix(in oklab, var(--panel) 92%, transparent) 0%, color-mix(in oklab, var(--c-panel) 88%, transparent) 100%));
+      border: 1px solid var(--c-border-strong);
+      border-radius: 8px;
+      transition: .25s ease;
+    }
+
+    tbody tr:hover {
+      background: var(--grad-card, linear-gradient(145deg, color-mix(in oklab, var(--panel) 88%, transparent) 0%, color-mix(in oklab, var(--c-panel) 82%, transparent) 100%));
+      box-shadow: var(--shadow);
+      transform: translateY(-2px);
+    }
+
+    td {
+      padding: 10px;
+      color: #fff;
+      background: transparent;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    th.hosts-header {
+      left: 0;
+      position: sticky;
+      z-index: 4;
+    }
+
+    td.hosts-cell {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: transparent;
+      backdrop-filter: none;
+    }
+
+    thead th.sort-asc::after {
+      content: '↑';
+      margin-left: 8px;
+      color: #00b894;
+    }
+
+    thead th.sort-desc::after {
+      content: '↓';
+      margin-left: 8px;
+      color: #00b894;
+    }
+
+    .hosts-content {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+
+    /* Bulles */
+    .bubble {
+      padding: .5rem 1rem;
+      border-radius: 6px;
+      font-size: .9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      transition: .2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .1);
+    }
+
+    .bubble.essid {
+      background: linear-gradient(135deg, #272727, #2560a1);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: .9em;
+      font-weight: bold;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    .bubble.ip-address {
+      background: linear-gradient(135deg, #272727, #00cec9);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .bubble.hostname {
+      background: linear-gradient(135deg, #5b5c5a, #e7951a);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .bubble.mac-address {
+      background: linear-gradient(135deg, #404041, #636e72);
+      color: #b2bec3;
+      font-family: monospace;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bubble.vendor {
+      background: linear-gradient(135deg, #5b5c5a, #0a4952);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .ports-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      align-items: center;
+    }
+
+    .port-bubble {
+      background: linear-gradient(135deg, #2e2e2e, #00b894);
+      color: white;
+      padding: .4rem .8rem;
+      border-radius: 20px;
+      font-size: .85rem;
+      max-width: fit-content;
+      transition: .2s;
+    }
+
+    .port-bubble:hover {
+      transform: scale(1.08);
+      box-shadow: 0 2px 8px rgba(9, 132, 227, .3);
+    }
+
+    /* Focus */
+    .segmented button:focus-visible,
+    .nv-search input:focus-visible,
+    .nv-switch:has(input:focus-visible) {
+      outline: 2px solid var(--acid);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--acid) 25%, transparent);
+    }
+
+    /* ======================= MAP STYLES (NEW) ======================= */
+
+    /* Ocean Background */
+    .ocean-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, #0a4b7a 0%, #01162e 60%, #00050a 100%);
+    }
+
+    .ocean-surface {
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      opacity: 0.3;
+      background-image: repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 20px, rgba(255, 255, 255, 0.02) 25px, transparent 40px);
+      animation: oceanDrift 60s linear infinite alternate;
+    }
+
+    .ocean-caustics {
+      position: absolute;
+      top: -100%;
+      left: -100%;
+      width: 300%;
+      height: 300%;
+      opacity: 0.3;
+      background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.005" numOctaves="5"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.3"/></svg>');
+      mix-blend-mode: overlay;
+      animation: causticFlow 30s linear infinite;
+    }
+
+    @keyframes oceanDrift {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      100% {
+        transform: translate(-40px, 20px) rotate(1deg);
+      }
+    }
+
+    @keyframes causticFlow {
+      0% {
+        transform: translate(0, 0);
+      }
+
+      100% {
+        transform: translate(-100px, -50px);
+      }
+    }
+
+    /* Map Container */
+    #visualization-container {
+      display: none;
+      position: relative;
+      height: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--c-border-strong);
+      box-shadow: var(--shadow);
+      background: transparent;
+      /* Transparent pour voir l'océan */
+    }
+
+    /* D3 Elements */
+    .link {
+      stroke: rgba(255, 255, 255, 0.15);
+      stroke-width: 1px;
+    }
+
+    .node {
+      cursor: pointer;
+      transition: opacity 0.5s;
+    }
+
+    .foam-ring {
+      fill: rgba(240, 248, 255, 0.3);
+      filter: url(#foam-filter);
+      mix-blend-mode: screen;
+      animation: foamPulse 4s ease-in-out infinite alternate;
+    }
+
+    .foam-ring:nth-child(2) {
+      animation-delay: -1s;
+      opacity: 0.3;
+    }
+
+    @keyframes foamPulse {
+      0% {
+        transform: scale(0.9) rotate(0deg);
+        opacity: 0.4;
+      }
+
+      100% {
+        transform: scale(1.1) rotate(10deg);
+        opacity: 0.1;
+      }
+    }
+
+    .sonar-wave {
+      fill: none;
+      stroke: #ffb703;
+      stroke-width: 2px;
+      animation: sonar 4s infinite ease-out;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes sonar {
+      0% {
+        r: 40px;
+        opacity: 0.6;
+        stroke-width: 3px;
+      }
+
+      100% {
+        r: 300px;
+        opacity: 0;
+        stroke-width: 1px;
+      }
+    }
+
+    .label-group {
+      transition: transform 0.1s;
+    }
+
+    .label-bg {
+      fill: rgba(0, 20, 40, 0.8);
+      rx: 4;
+      stroke: rgba(255, 255, 255, 0.1);
+      stroke-width: 0.5px;
+    }
+
+    .label-text {
+      font-size: 10px;
+      fill: #fff;
+      font-family: monospace;
+      text-shadow: 0 1px 2px #000;
+      pointer-events: none;
+    }
+
+    .d3-tooltip {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0;
+      background: rgba(2, 16, 31, 0.95);
+      border: 1px solid #219ebc;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #fff;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+      transform: translate(-50%, -110%);
+      transition: opacity 0.2s;
+      white-space: nowrap;
+      z-index: 1000;
+    }
+
+    /* Responsive */
+    @media (max-width: 720px) {
+      .nv-search {
+        min-width: 0;
+        flex: 1;
+      }
+    }
+  </style>
 </head>
+
 <body>
-    <div class="toolbar" id="mainToolbar">
-        <button type="button" onclick="window.location.href='/index.html'" title="Playground">
-            <img src="/web/images/console_icon.png" alt="Bjorn" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/config.html'" title="Config">
-            <img src="/web/images/config_icon.png" alt="Icon_config" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/network.html'" title="Network">
-            <img src="/web/images/network_icon.png" alt="Icon_network" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/netkb.html'" title="NetKB">
-            <img src="/web/images/netkb_icon.png" alt="Icon_netkb" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/credentials.html'" title="Credentials">
-            <img src="/web/images/cred_icon.png" alt="Icon_cred" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/loot.html'" title="Loot">
-            <img src="/web/images/loot_icon.png" alt="Icon_loot" style="height: 50px;">
-        </button>
-    </div>
-    <div class="console-toolbar">
-        <button type="button" class="toolbar-button" onclick="adjustNetworkFontSize(-1)" title="-">
-            <img src="/web/images/less.png" alt="Icon_less" style="height: 50px;">
-        </button>
-   
-        <button id="toggle-toolbar" type="button" class="toolbar-button" onclick="toggleNetworkToolbar()" data-open="false">
-            <img id="toggle-icon" src="/web/images/hide.png" alt="Toggle Toolbar" style="height: 50px;">
-        </button>
 
-        <button type="button" class="toolbar-button" onclick="adjustNetworkFontSize(1)" title="+">
-            <img src="/web/images/plus.png" alt="Icon_plus" style="height: 50px;">
-        </button>
+  <svg style="position: absolute; width: 0; height: 0; overflow: hidden;">
+    <defs>
+      <filter id="foam-filter" x="-50%" y="-50%" width="200%" height="200%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  </svg>
 
-    </div>
-    <div class="network-container">
-        <div id="network-table" class="scrollable-table">
-            <!-- The table will be inserted here by JavaScript -->
+  <div class="ocean-container">
+    <div class="ocean-surface"></div>
+    <div class="ocean-caustics"></div>
+  </div>
+
+  <main class="main">
+    <div class="nv-toolbar-wrap">
+      <div class="nv-toolbar">
+        <div class="nv-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.9.9l.3.3v.8L20 21.5 21.5 20l-6-6zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z" />
+          </svg>
+          <input id="searchInput" type="text" placeholder="Search IP / Hostname / Ports…" />
         </div>
+
+        <div class="segmented" id="viewSeg">
+          <button type="button" data-view="table" aria-pressed="true">Table</button>
+          <button type="button" data-view="map" aria-pressed="false">Map</button>
+        </div>
+
+        <label class="nv-switch" id="hostSwitch" data-on="true" title="Show Labels on map">
+          <input type="checkbox" id="toggleHostname" checked>
+          <span>Labels</span>
+          <span class="track"><span class="thumb"></span></span>
+        </label>
+      </div>
     </div>
+
+    <div id="table-wrap" class="table-wrap">
+      <div id="network-table"></div>
+    </div>
+    <div id="visualization-container"></div>
+  </main>
+
+  <div id="d3-tooltip" class="d3-tooltip"></div>
+
+  <script>
+    // --- GLOBAL STATE ---
+    let currentSort = { column: null, direction: 'asc' };
+    let viewMode = 'table';
+    let networkData = []; // Raw data from table parsing
+
+    // D3 State (Persistent)
+    let globalNodes = [], globalLinks = [];
+    let simulation, svg, g, linkGroup, nodeGroup, labelsGroup;
+    let currentZoomScale = 1;
+    let showLabels = true;
+    let mapInitialized = false;
+
+    // --- CONFIGURATION ---
+    const ICONS = {
+      bjorn: '/web/images/boat.png',
+      host_active: '/web/images/target.png',
+      host_empty: '/web/images/target2.png',
+      loot: '/web/images/treasure.png',
+      gateway: '/web/images/lighthouse.png'
+    };
+
+    /* ========== Helpers ========== */
+    const getPref = (k, d) => localStorage.getItem(k) ?? d;
+    const setPref = (k, v) => localStorage.setItem(k, v);
+    const norm = v => (v ?? '').toString().toLowerCase();
+
+    /* ========== Initialization ========== */
+    document.addEventListener('DOMContentLoaded', () => {
+      // Restore prefs
+      const savedView = getPref('nv:view', 'table');
+      const savedSearch = getPref('nv:search', '');
+      const savedShowLabels = getPref('nv:showHostname', 'true') === 'true';
+
+      document.getElementById('searchInput').value = savedSearch;
+      document.getElementById('toggleHostname').checked = savedShowLabels;
+      document.getElementById('hostSwitch').dataset.on = String(savedShowLabels);
+      showLabels = savedShowLabels;
+
+      // Event Listeners
+      document.querySelectorAll('#viewSeg button').forEach(btn => {
+        btn.addEventListener('click', () => setView(btn.dataset.view));
+      });
+
+      document.getElementById('toggleHostname').addEventListener('change', e => {
+        showLabels = e.target.checked;
+        document.getElementById('hostSwitch').dataset.on = String(showLabels);
+        setPref('nv:showHostname', String(showLabels));
+        updateLabelsVisibility();
+      });
+
+      let t;
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        clearTimeout(t); t = setTimeout(applySearch, 120);
+      });
+
+      // Init View
+      setView(savedView === 'map' ? 'map' : 'table');
+
+      // Start Loop
+      fetchNetworkData();
+      setInterval(fetchNetworkData, 5000); // 5s refresh
+    });
+
+    /* ========== View Switching ========== */
+    function setView(mode) {
+      viewMode = mode;
+      setPref('nv:view', mode);
+      document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === mode)));
+
+      const tableWrap = document.getElementById('table-wrap');
+      const mapWrap = document.getElementById('visualization-container');
+      const hostSwitch = document.getElementById('hostSwitch');
+
+      if (mode === 'table') {
+        tableWrap.style.display = '';
+        mapWrap.style.display = 'none';
+        hostSwitch.style.display = 'none';
+      } else {
+        tableWrap.style.display = 'none';
+        mapWrap.style.display = 'block';
+        hostSwitch.style.display = 'flex';
+
+        if (!mapInitialized) {
+          initMap();
+          updateMapFromData(networkData); // Initial draw
+        }
+      }
+    }
+
+    /* ========== Data Logic ========== */
+    function fetchNetworkData() {
+      fetch('/network_data')
+        .then(r => r.text())
+        .then(html => {
+          const processedHTML = processTableData(html);
+          document.getElementById('network-table').innerHTML = processedHTML;
+
+          const table = document.querySelector('#network-table table');
+          if (table) {
+            initTableSorting(table);
+            applySearchToTable();
+            networkData = extractDataForMap(table);
+
+            if (mapInitialized) {
+              updateMapFromData(networkData);
+            }
+          }
+        })
+        .catch(e => console.error('Network data error:', e));
+    }
+
+    function processTableData(htmlString) {
+      const div = document.createElement('div'); div.innerHTML = htmlString;
+      const oldTable = div.querySelector('table'); if (!oldTable) return htmlString;
+
+      const newTable = document.createElement('table'); newTable.className = 'network-table';
+      newTable.innerHTML = `<thead><tr><th class="hosts-header">Hosts</th><th>Ports</th></tr></thead><tbody></tbody>`;
+      const tbody = newTable.querySelector('tbody');
+
+      Array.from(oldTable.querySelectorAll('tr')).slice(1).forEach(oldRow => {
+        const cells = oldRow.querySelectorAll('td');
+        if (cells.length >= 4) {
+          const tr = document.createElement('tr');
+          const essid = (cells[0]?.textContent || '').trim();
+          const ip = (cells[1]?.textContent || '').trim();
+          const hostname = (cells[2]?.textContent || '').trim();
+          const mac = (cells[3]?.textContent || '').trim();
+          const vendor = (cells[4]?.textContent || '').trim();
+          const portsStr = (cells[5]?.textContent || '').trim();
+
+          const hosts = `<div class="hosts-content">
+            <span class="bubble ip-address">${ip}</span>
+            ${hostname ? `<span class="bubble hostname">${hostname}</span>` : ''}
+            ${mac ? `<span class="bubble mac-address">${mac}</span>` : ''}
+            ${vendor ? `<span class="bubble vendor">${vendor}</span>` : ''}
+            ${essid ? `<span class="bubble essid">${essid}</span>` : ''}
+          </div>`;
+
+          let portsHtml = '';
+          if (portsStr) {
+            const portsList = portsStr.split(';').map(p => p.trim()).filter(p => p !== '' && p.toLowerCase() !== 'none');
+            portsHtml = `<div class="ports-container">${portsList.map(p => `<span class="port-bubble">${p}</span>`).join(' ')}</div>`;
+          }
+
+          tr.innerHTML = `<td class="hosts-cell">${hosts}</td><td>${portsHtml}</td>`;
+          tbody.appendChild(tr);
+        }
+      });
+      return `<div class="table-inner">${newTable.outerHTML}</div>`;
+    }
+
+    function extractDataForMap(table) {
+      const out = [];
+      table.querySelectorAll('tbody tr').forEach((tr, i) => {
+        const ip = tr.querySelector('.ip-address')?.textContent.trim() || '';
+        const hostname = tr.querySelector('.hostname')?.textContent.trim() || '';
+        const mac = tr.querySelector('.mac-address')?.textContent.trim() || '';
+        const vendor = tr.querySelector('.vendor')?.textContent.trim() || '';
+        const ports = Array.from(tr.querySelectorAll('.port-bubble')).map(el => el.textContent.trim());
+        out.push({ ip, hostname, mac, vendor, ports });
+      });
+      return out;
+    }
+
+    /* ========== Search Logic ========== */
+    function applySearch() {
+      const term = document.getElementById('searchInput').value.trim().toLowerCase();
+      localStorage.setItem('nv:search', term);
+      applySearchToTable();
+      if (mapInitialized && g) {
+        g.selectAll('.node').style('opacity', d => {
+          if (!term) return 1;
+          const content = (d.label + d.ip + d.vendor).toLowerCase();
+          return content.includes(term) ? 1 : 0.1;
+        });
+      }
+    }
+
+    function applySearchToTable() {
+      const term = document.getElementById('searchInput').value.trim().toLowerCase();
+      const table = document.querySelector('#network-table table');
+      if (table) {
+        table.querySelectorAll('tbody tr').forEach(tr => {
+          tr.style.display = tr.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
+      }
+    }
+
+    /* ========== D3 MAP ENGINE ========== */
+    function initMap() {
+      mapInitialized = true;
+      const container = document.getElementById('visualization-container');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      svg = d3.select("#visualization-container").append("svg")
+        .attr("width", width).attr("height", height)
+        .on("click", () => document.getElementById('d3-tooltip').style.opacity = 0);
+
+      g = svg.append("g");
+      g.append("g").attr("class", "sonar-layer");
+      linkGroup = g.append("g").attr("class", "links-layer");
+      nodeGroup = g.append("g").attr("class", "nodes-layer");
+      labelsGroup = g.append("g").attr("class", "labels-layer node-labels");
+
+      const zoom = d3.zoom().scaleExtent([0.2, 6]).on("zoom", (e) => {
+        g.attr("transform", e.transform);
+        currentZoomScale = e.transform.k;
+        requestAnimationFrame(() => labelsGroup.selectAll(".label-group").attr("transform", d => `translate(${d.x},${d.y + d.r + 15}) scale(${1 / currentZoomScale})`));
+      });
+      svg.call(zoom);
+
+      // --- PHYSIQUE STABILISÉE ---
+      simulation = d3.forceSimulation()
+        // Liens plus courts pour compacter
+        .force("link", d3.forceLink().id(d => d.id).distance(d => d.target.type === 'loot' ? 30 : 80))
+
+        // Répulsion différencée : Les 'vides' se repoussent plus pour s'écarter
+        .force("charge", d3.forceManyBody().strength(d => d.type === 'host_empty' ? -300 : -100))
+
+        // Anti-collision
+        .force("collide", d3.forceCollide().radius(d => d.r * 1.5).iterations(2))
+
+        // Gravité centrale pour tout ramener
+        .force("x", d3.forceX(width / 2).strength(0.08))
+        .force("y", d3.forceY(height / 2).strength(0.08))
+
+        // Friction importante pour stopper le mouvement
+        .alphaMin(0.05)
+        .velocityDecay(0.6)
+        .on("tick", ticked);
+
+      window.addEventListener('resize', () => {
+        svg.attr("width", container.clientWidth).attr("height", container.clientHeight);
+        simulation.force("center", d3.forceCenter(container.clientWidth / 2, container.clientHeight / 2)).alpha(0.3).restart();
+      });
+    }
+
+    function updateMapFromData(data) {
+      const incomingNodes = new Map();
+      const incomingLinks = [];
+
+      // 1. BJORN
+      incomingNodes.set('bjorn', { id: 'bjorn', type: 'bjorn', r: 50, label: 'BJORN' });
+
+      // 2. Process Nodes
+      data.forEach(h => {
+        const hasPorts = h.ports && h.ports.length > 0;
+        const isGateway = h.ip.endsWith('.1') || h.ip.endsWith('.254');
+        const type = isGateway ? 'gateway' : (hasPorts ? 'host_active' : 'host_empty');
+        const radius = isGateway ? 40 : (hasPorts ? 30 : 20);
+
+        incomingNodes.set(h.ip, {
+          id: h.ip, type: type, ip: h.ip, label: h.hostname || h.ip,
+          vendor: h.vendor, r: radius, ports: h.ports
+        });
+
+        if (hasPorts) {
+          h.ports.forEach(p => {
+            const portId = `${h.ip}_${p}`;
+            incomingNodes.set(portId, { id: portId, type: 'loot', label: p, r: 15, parent: h.ip });
+            incomingLinks.push({ source: h.ip, target: portId });
+          });
+        }
+      });
+
+      // 3. RECONCILIATION
+      const nextNodes = [];
+      let hasStructuralChanges = false;
+
+      // Check counts to decide if we need to restart sim
+      if (globalNodes.length !== incomingNodes.size) hasStructuralChanges = true;
+
+      incomingNodes.forEach((data, id) => {
+        const existing = globalNodes.find(n => n.id === id);
+        if (existing) {
+          if (existing.type !== data.type) hasStructuralChanges = true; // Status changed
+          Object.assign(existing, data);
+          nextNodes.push(existing);
+        } else {
+          hasStructuralChanges = true;
+          const w = svg.attr("width"), h = svg.attr("height");
+          data.x = w / 2 + (Math.random() - 0.5) * 50;
+          data.y = h / 2 + (Math.random() - 0.5) * 50;
+          nextNodes.push(data);
+        }
+      });
+
+      globalNodes = nextNodes;
+      globalLinks = incomingLinks.map(l => ({ source: l.source, target: l.target }));
+
+      updateViz(hasStructuralChanges);
+    }
+
+    function updateViz(restartSimulation) {
+      const node = nodeGroup.selectAll(".node").data(globalNodes, d => d.id);
+
+      const nodeEnter = node.enter().append("g").attr("class", "node")
+        .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+
+      nodeEnter.append("g").attr("class", "foam-container");
+      nodeEnter.append("image").attr("class", "node-icon")
+        .on("error", function () { d3.select(this).style("display", "none"); });
+
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.attr("class", d => `node ${d.type === 'host_empty' ? 'empty' : ''}`);
+
+      nodeUpdate.select(".node-icon")
+        .attr("xlink:href", d => ICONS[d.type] || ICONS.host_empty)
+        .attr("x", d => -d.r).attr("y", d => -d.r)
+        .attr("width", d => d.r * 2).attr("height", d => d.r * 2)
+        .style("display", "block");
+
+      // Only update foam if needed (perf)
+      nodeUpdate.select(".foam-container").each(function (d) {
+        if (!['bjorn', 'gateway', 'host_active'].includes(d.type)) {
+          d3.select(this).selectAll("*").remove();
+          return;
+        }
+        if (d3.select(this).empty()) {
+          const c = d3.select(this);
+          [1, 2].forEach(i => c.append("circle").attr("class", "foam-ring").attr("r", d.r * (1 + i * 0.15)));
+        }
+      });
+
+      nodeUpdate.on("click", (e, d) => showTooltip(e, d));
+      node.exit().transition().duration(500).style("opacity", 0).remove();
+
+      const link = linkGroup.selectAll(".link").data(globalLinks, d => d.source.id ? (d.source.id + "-" + d.target.id) : (d.source + "-" + d.target));
+      link.enter().append("line").attr("class", "link");
+      link.exit().remove();
+
+      const label = labelsGroup.selectAll(".label-group").data(globalNodes.filter(d => ['bjorn', 'gateway', 'host_active', 'loot'].includes(d.type)), d => d.id);
+      const labelEnter = label.enter().append("g").attr("class", "label-group");
+      labelEnter.append("rect").attr("class", "label-bg").attr("height", 16);
+      labelEnter.append("text").attr("class", "label-text").attr("text-anchor", "middle").attr("y", 11);
+
+      const labelUpdate = labelEnter.merge(label);
+      labelUpdate.select("text").text(d => d.label).each(function () {
+        const w = this.getBBox().width;
+        d3.select(this.parentNode).select("rect").attr("x", -w / 2 - 4).attr("width", w + 8);
+      });
+      label.exit().remove();
+
+      updateLabelsVisibility();
+
+      simulation.nodes(globalNodes);
+      simulation.force("link").links(globalLinks);
+
+      // Crucial: Only restart physics if something actually changed structure
+      if (restartSimulation) {
+        simulation.alpha(0.3).restart();
+      }
+    }
+
+    function ticked() {
+      linkGroup.selectAll(".link")
+        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+
+      nodeGroup.selectAll(".node").attr("transform", d => `translate(${d.x},${d.y})`);
+      labelsGroup.selectAll(".label-group").attr("transform", d => `translate(${d.x},${d.y + d.r + 15}) scale(${1 / currentZoomScale})`);
+
+      const bjorn = globalNodes.find(n => n.type === 'bjorn');
+      if (bjorn) {
+        let sonar = g.select(".sonar-layer").selectAll(".sonar-wave").data([bjorn]);
+        sonar.enter().append("circle").attr("class", "sonar-wave")
+          .merge(sonar).attr("cx", d => d.x).attr("cy", d => d.y);
+      }
+    }
+
+    /* ========== D3 Utils ========== */
+    function dragstarted(e, d) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+    function dragged(e, d) { d.fx = e.x; d.fy = e.y; }
+    function dragended(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+    function showTooltip(e, d) {
+      e.stopPropagation();
+      const tt = document.getElementById('d3-tooltip');
+      let html = `<div style="color:var(--gold);font-weight:bold;margin-bottom:5px;">${d.label}</div>`;
+      if (d.ip && d.ip !== d.label) html += `<div><i class="fas fa-network-wired"></i> ${d.ip}</div>`;
+      if (d.vendor) html += `<div style="opacity:0.8;font-size:0.8em"><i class="fas fa-microchip"></i> ${d.vendor}</div>`;
+      if (d.type === 'loot') html = `<div>💰 <strong>Port ${d.label}</strong></div>`;
+      tt.innerHTML = html;
+      tt.style.left = (e.pageX + 10) + "px"; tt.style.top = (e.pageY - 50) + "px";
+      tt.style.opacity = 1;
+    }
+
+    function updateLabelsVisibility() {
+      if (labelsGroup) labelsGroup.style("opacity", showLabels ? 1 : 0);
+    }
+
+    function initTableSorting(table) {
+      const headers = table.querySelectorAll('th');
+      headers.forEach((h, idx) => {
+        h.addEventListener('click', () => {
+          headers.forEach(x => x.classList.remove('sort-asc', 'sort-desc'));
+          if (currentSort.column === idx) currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+          else { currentSort.column = idx; currentSort.direction = 'asc'; }
+          h.classList.add(`sort-${currentSort.direction}`);
+
+          const tbody = table.querySelector('tbody');
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          const sorted = rows.sort((a, b) => {
+            const A = a.querySelectorAll('td')[idx].textContent.trim().toLowerCase();
+            const B = b.querySelectorAll('td')[idx].textContent.trim().toLowerCase();
+            return currentSort.direction === 'asc' ? A.localeCompare(B) : B.localeCompare(A);
+          });
+          tbody.innerHTML = ''; sorted.forEach(r => tbody.appendChild(r));
+        });
+      });
+    }
+
+    function applySearchToTable() {
+      const term = document.getElementById('searchInput').value.trim().toLowerCase();
+      const table = document.querySelector('#network-table table');
+      if (table) {
+        table.querySelectorAll('tbody tr').forEach(tr => {
+          tr.style.display = tr.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
+      }
+    }
+  </script>
 </body>
+
 </html>

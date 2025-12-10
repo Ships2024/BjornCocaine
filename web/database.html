@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bjorn Cyberviking — DB Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="icon" href="/web/images/favicon.ico" />
+  <link rel="stylesheet" href="/web/css/global.css" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#050709" />
+  <style>
+:root{--topbar-h:var(--h-topbar,56px);--bottombar-h:var(--h-bottombar,56px);--db-row-hover:rgba(0,255,154,.06);--db-row-selected:rgba(0,255,154,.12);--db-cell-edited:rgba(24,240,255,.18);--db-cell-focus:rgba(0,255,154,.22);--sidebar-w:280px}
+body{padding:0;overflow-x:hidden}
+.db-header{position:sticky;top:0;z-index:20;background:var(--grad-topbar);border:1px solid var(--c-border);border-radius:12px;padding:12px;box-shadow:var(--shadow);margin-bottom:12px}
+.sticky-actions{position:sticky;bottom:0;z-index:15;display:flex;gap:8px;justify-content:flex-end;padding:8px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.4));border-top:1px solid var(--c-border);border-radius:12px;backdrop-filter:blur(4px)}
+.db-tree{display:grid;gap:6px}
+.tree-head{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.tree-search{display:flex;gap:6px;align-items:center;background:var(--c-panel);border:1px solid var(--c-border-strong);border-radius:10px;padding:6px 8px}
+.tree-search input{all:unset;flex:1;color:var(--ink)}
+.tree-group{margin-top:10px}
+.tree-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--c-border);border-radius:10px;background:var(--c-panel-2);cursor:pointer;transition:.18s}
+.tree-item:hover{box-shadow:0 0 0 1px var(--c-border-hi) inset,0 8px 22px var(--glow-weak);transform:translateX(2px)}
+.tree-item.active{background:linear-gradient(180deg,#0b151c,#091219);outline:2px solid color-mix(in oklab,var(--acid) 55%,transparent)}
+.tree-item .count{margin-left:auto;padding:2px 8px;border-radius:999px;background:var(--c-chip-bg);border:1px solid var(--c-border-hi);font-size:11px;color:var(--muted)}
+.db-title{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--acid);letter-spacing:.08em}
+.db-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.db-search{display:flex;align-items:center;gap:8px;background:var(--c-panel);border:1px solid var(--c-border-strong);border-radius:10px;padding:0 10px;min-width:220px;flex:1}
+.db-search input{all:unset;color:var(--ink);height:34px;flex:1}
+.db-opts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hint{color:var(--muted);font-size:12px}
+.sep{width:1px;height:24px;background:var(--c-border);margin:0 4px;opacity:.6}
+.db-container{min-height:100%;display:flex;flex-direction:column}
+.db-wrap{display:flex;flex-direction:column;gap:12px;min-height:0;flex:1}
+.db-table-wrap{position:relative;overflow:auto;border:1px solid var(--c-border);border-radius:12px;background:var(--grad-card);box-shadow:var(--shadow);flex:1;min-height:0}
+table.db{width:100%;border-collapse:separate;border-spacing:0}
+.db-table-wrap table.db thead th{position:sticky;top:0;z-index:5;background:var(--c-panel);border-bottom:1px solid var(--c-border-strong);text-align:left;padding:10px;font-weight:700;color:var(--acid);user-select:none;cursor:pointer;white-space:nowrap}
+.db tbody td{padding:8px 10px;border-bottom:1px dashed var(--c-border-muted);vertical-align:middle;background:var(--grad-card)}
+.db tbody tr:hover{background:var(--db-row-hover)}
+.db tbody tr.selected{background:var(--db-row-selected);outline:1px solid var(--c-border-hi)}
+.cell{display:block;min-width:80px;max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell[contenteditable="true"]{outline:0;border-radius:6px;transition:.12s;padding:2px 6px}
+.cell[contenteditable="true"]:focus{background:var(--db-cell-focus);box-shadow:0 0 0 1px var(--c-border-hi) inset}
+.cell.edited{background:var(--db-cell-edited)}
+.pk{color:var(--muted);font-size:12px}
+.cols-drawer{display:none}
+.cols-drawer.open{display:block}
+.db-page{display:grid;grid-template-columns:1fr}
+.sidebar{width:auto}
+.main{position:fixed;left:var(--sidebar-w);right:0;top:var(--topbar-h);bottom:var(--bottombar-h);overflow:auto;padding:16px;transition:.25s}
+.sidebar.hidden + .main{left:0 !important}@keyframes blinkChange{from{box-shadow:0 0 0 0 var(--acid-22)}to{box-shadow:0 0 0 6px transparent}}
+.value-changed{animation:blinkChange .66s ease}
+.sticky-col-cell{position:sticky;z-index:3;background:var(--grad-card);box-shadow:1px 0 0 0 var(--c-border-strong),-1px 0 0 0 var(--c-border)}
+.sticky-col-head{position:sticky;z-index:3;background:var(--grad-card);box-shadow:1px 0 0 0 var(--c-border-strong),-1px 0 0 0 var(--c-border)}
+.sticky-check,.sticky-col-head.sticky-check{z-index:4}
+th.is-sticky .sticky-dot::after{content:"●";margin-left:6px;font-size:10px;color:var(--acid);opacity:.9}
+th[data-col]{position:relative}
+th[data-col]::after{content:"⏱️ 1.5s pour fixer";position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);opacity:0;pointer-events:none;transition:opacity .15s ease}
+@media (hover:hover){th[data-col]:hover::after{opacity:.7}}
+.main{position:fixed;right:0;top:var(--topbar-h);bottom:var(--bottombar-h);overflow:auto;padding:16px;transition:.25s}
+.sidebar.hidden + .main{left:0 !important}
+body:not(:has(#sidebar)) .main{left:0 !important}
+@media (max-width:1100px){.db-controls{gap:6px}.db-search{min-width:160px}.cell{max-width:60vw}}
+@media (max-width:1100px){body{padding:0}}
+@media (max-width:900px){.main{left:240px}}
+@media (max-width:700px){.main{left:0}}
+
+  </style>
+  <script src="/web/js/global.js" defer></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar" aria-label="Navigation base de données">
+      <div class="sidehead">
+        <div class="sidetitle">Database</div>
+        <div class="spacer"></div>
+        <button class="btn" id="hideSidebar"><span class="icon">⟵</span><span class="label">Hide</span></button>
+      </div>
+      <div class="sidecontent" id="sidecontent">
+        <div class="card">
+          <div class="tree-head">
+            <div class="pill">Tables</div>
+            <div class="spacer"></div>
+            <button class="btn" id="refreshTree">Refresh</button>
+          </div>
+          <div class="tree-search">
+            <span aria-hidden="true">🔎</span>
+            <input id="treeFilter" placeholder="Filter tables…" />
+          </div>
+          <div id="dbTree" class="db-tree"></div>
+          <div class="hint" id="treeHint" style="margin-top:8px"></div>
+        </div>
+        <div class="card">
+          <div class="head">
+            <div class="title">Utilities</div>
+          </div>
+          <div class="chips">
+            <button class="chip" id="newTableBtn">➕ New table</button>
+            <button class="chip" id="exportAllBtn">⬇ Export DB</button>
+            <button class="chip is-danger" id="vacuumBtn">🧹 Vacuum</button>
+          </div>
+        </div>
+      </div>
+      <div class="hero-btn" style="display:none"></div>
+      <div id="empty-list-hint" style="display:none;opacity:.8;margin-top:8px;font-size:.95em"></div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main" id="main">
+      <div class="db-container">
+      <div class="db-wrap">
+        <!-- Header (collé sous la topbar globale) -->
+        <div class="db-header">
+          <div class="db-title">
+            <img class="sig" src="/web/images/bjornwebicon.png" alt="Bjorn" width="24" height="24" />
+            <span id="titleTable">Select a table</span>
+            <span class="pk" id="titleMeta"></span>
+          </div>
+          <div class="db-controls">
+            <div class="db-search" title="Search in current table">
+              <input id="q" placeholder="Search values, e.g. mac:AA:BB, port>80, text…" />
+              <button class="btn" id="searchBtn">Search</button>
+            </div>
+            <div class="db-opts">
+              <select class="select" id="sortSelect" title="Sort">
+                <option value="">Sort: auto</option>
+              </select>
+              <select class="select" id="limitSelect" title="Rows per page">
+                <option>50</option><option>100</option><option>250</option><option>500</option>
+              </select>
+              <div class="row-toggle" style="padding:6px 10px">
+                <label for="liveToggle" style="margin-right:8px">Live</label>
+                <label class="toggle">
+                  <input type="checkbox" id="liveToggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="input-number">
+                <span>Every</span>
+                <input type="number" id="liveSec" value="5" min="2" max="120" />
+                <span>sec</span>
+              </div>
+              <button class="btn" id="refreshBtn">↻ Refresh</button>
+              <span class="sep" aria-hidden="true"></span>
+              <button class="btn primary" id="saveBtn" disabled>💾 Save edits</button>
+              <button class="btn" id="discardBtn" disabled>⟲ Discard</button>
+              <span class="sep" aria-hidden="true"></span>
+              <button class="btn" id="addRowBtn">➕ Row</button>
+              <button class="btn" id="deleteSelBtn" disabled>🗑 Delete selected</button>
+              <div class="chips">
+                <button class="chip" id="exportCsvBtn">CSV</button>
+                <button class="chip" id="exportJsonBtn">JSON</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="db-table-wrap" id="tableWrap" aria-label="Table data scroller">
+          <table class="db" id="dataTable" aria-live="polite">
+            <thead>
+              <tr>
+                <th class="sticky-check" style="width:38px; left:0"><input type="checkbox" id="checkAll" aria-label="Select all rows"/></th>
+                <th>—</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="99" class="hint" style="padding:14px">Pick a table on the left.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Actions bas (au-dessus de la bottombar) -->
+        <div class="sticky-actions">
+          <div class="hint" id="statusHint">Ready.</div>
+          <div class="spacer"></div>
+          <div class="chips">
+            <button class="chip is-warn" id="truncateBtn" disabled>Danger: Truncate</button>
+            <button class="chip is-danger" id="dropBtn" disabled>Danger: Drop table</button>
+          </div>
+        </div>
+
+        <!-- Drawer colonnes -->
+        <div class="cols-drawer" id="colsDrawer">
+          <div class="card">
+            <div class="head">
+              <div class="title">Columns</div>
+              <div class="spacer"></div>
+              <button class="btn" id="hideCols">Close</button>
+            </div>
+            <div class="chips" id="colsChips"></div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </main>
+
+  <script>
+  (function(){
+    const $ = (s, r=document)=> r.querySelector(s);
+    const $$ = (s, r=document)=> [...r.querySelectorAll(s)];
+    const toast = (msg)=> (window.AcidBurn?.toast ? window.AcidBurn.toast(msg) : alert(msg));
+
+    /* ========= API ADAPTER ========= */
+    const API = (function(){
+      const base = '/api/db';
+      const j = (r)=> { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); };
+      const t = (r)=> { if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); };
+      return {
+        listCatalog: ()=> fetch(`${base}/catalog`).then(j),
+        listTables: ()=> fetch(`${base}/tables`).then(j),
+        getTable: (name, opts={})=>{
+          const p = new URLSearchParams({limit: opts.limit||50, offset: opts.offset||0, q: opts.q||'', sort: opts.sort||''});
+          return fetch(`${base}/table/${encodeURIComponent(name)}?`+p.toString()).then(j);
+        },
+        updateCells: (payload)=> fetch(`${base}/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}).then(j),
+        deleteRows: (payload)=> fetch(`${base}/delete`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}).then(j),
+        insertRow: (payload)=> fetch(`${base}/insert`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}).then(j),
+        exportTable: (name, fmt='csv')=> fetch(`${base}/export/${encodeURIComponent(name)}?format=${fmt}`).then(t),
+        exportAll: (fmt='csv')=> fetch(`${base}/export_all?format=${fmt}`),
+        vacuum: ()=> fetch(`${base}/vacuum`, {method:'POST'}).then(j),
+        dropTable: (name)=> fetch(`${base}/drop/${encodeURIComponent(name)}`, {method:'POST'}).then(j),
+        dropView: (name)=> fetch(`${base}/drop_view/${encodeURIComponent(name)}`, {method:'POST'}).then(j),
+        truncateTable: (name)=> fetch(`${base}/truncate/${encodeURIComponent(name)}`, {method:'POST'}).then(j),
+        schema: (name)=> fetch(`${base}/schema/${encodeURIComponent(name)}`).then(j),
+        createTable: (payload)=> fetch(`${base}/create_table`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}).then(j),
+        renameTable: (from,to)=> fetch(`${base}/rename_table`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({from,to})}).then(j),
+        addColumn: (table, column)=> fetch(`${base}/add_column`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({table, column})}).then(j),
+      };
+    })();
+
+    /* ========= STATE ========= */
+    const state = {
+      table: null, kind: 'table', // 'table' | 'view'
+      columns: [], pk: null, rows: [],
+      dirty: new Map(),
+      selected: new Set(),
+      timers: { live: null },
+      sort: '', q: '', limit: 50, offset: 0,
+      lastHash: '', hiddenCols: new Set(),
+      stickyCols: new Set(),           // ← colonnes “collées”
+    };
+
+    /* ========= SIDEBAR: TABLE + VIEWS TREE ========= */
+    const dbTree = $('#dbTree');
+    const treeHint = $('#treeHint');
+    const treeFilter = $('#treeFilter');
+
+    async function loadTree(){
+      $('#refreshTree')?.setAttribute('disabled','disabled');
+      try{
+        const data = await API.listCatalog();
+        const q = (treeFilter.value||'').toLowerCase().trim();
+        dbTree.innerHTML = '';
+        let shown = 0;
+
+        function section(title, list, icon, kind){
+          if(!list?.length) return 0;
+          const head = document.createElement('div');
+          head.className = 'hint';
+          head.textContent = title;
+          dbTree.appendChild(head);
+          (list||[]).forEach(t=>{
+            if(q && !t.name.toLowerCase().includes(q)) return;
+            shown++;
+            const item = document.createElement('div');
+            item.className = 'tree-item';
+            if(t.name === state.table) item.classList.add('active');
+            item.dataset.name = t.name;
+            item.dataset.kind = kind;
+            item.innerHTML = `<span class="icon">${icon}</span><span>${t.name}</span><span class="count">${t.count ?? '—'}</span>`;
+            item.addEventListener('click', ()=>{
+              // toggle visuel immédiat
+              dbTree.querySelector('.tree-item.active')?.classList.remove('active');
+              item.classList.add('active');
+              // logique
+              selectTable(t.name, t.pk || 'id', kind);
+            });
+            dbTree.appendChild(item);
+          });
+          return 1;
+        }
+
+        section('Tables', data.tables, '🗂', 'table');
+        section('Views', data.views, '📄', 'view');
+
+        treeHint.textContent = shown ? `${shown} item(s)` : 'No tables/views.';
+      }catch(e){
+        toast('Failed to load catalog');
+      }finally{
+        $('#refreshTree')?.removeAttribute('disabled');
+      }
+    }
+
+    /* ========= MAIN: TABLE VIEW ========= */
+    const titleTable = $('#titleTable');
+    const titleMeta = $('#titleMeta');
+    const sortSelect = $('#sortSelect');
+    const limitSelect = $('#limitSelect');
+    const qInput = $('#q');
+    const searchBtn = $('#searchBtn');
+    const tableWrap = $('#tableWrap');
+    const tbody = $('#tbody');
+    const dataTable = $('#dataTable');
+    const saveBtn = $('#saveBtn');
+    const discardBtn = $('#discardBtn');
+    const refreshBtn = $('#refreshBtn');
+    const addRowBtn = $('#addRowBtn');
+    const deleteSelBtn = $('#deleteSelBtn');
+    const exportCsvBtn = $('#exportCsvBtn');
+    const exportJsonBtn = $('#exportJsonBtn');
+    const truncateBtn = $('#truncateBtn');
+    const dropBtn = $('#dropBtn');
+    const statusHint = $('#statusHint');
+    const liveToggle = $('#liveToggle');
+    const liveSec = $('#liveSec');
+    const colsDrawer = $('#colsDrawer');
+    const colsChips = $('#colsChips');
+    const hideCols = $('#hideCols');
+
+    function setStatus(s){ statusHint.textContent = s; }
+
+    function hashRows(rows){
+      try{ return JSON.stringify(rows).slice(0, 1024); }catch{ return String(rows?.length||0) }
+    }
+
+    async function selectTable(name, pkFallback='id', kind='table'){
+      state.table = name;
+      state.kind = kind;
+      state.q = ''; state.sort = ''; state.offset = 0;
+      state.dirty.clear(); state.selected.clear();
+      state.stickyCols.clear();
+      qInput.value = '';
+      titleTable.textContent = name + (kind==='view'?' (view)':'');
+      setButtons();
+      await refresh(true, {pkFallback});
+    }
+
+    function setButtons(){
+      const hasItem = !!state.table;
+      const hasDirty = state.dirty.size > 0;
+      const hasSel = state.selected.size > 0;
+      const readOnly = state.kind === 'view';
+
+      saveBtn.disabled = !hasDirty || readOnly;
+      discardBtn.disabled = !hasDirty;
+      deleteSelBtn.disabled = !hasSel || readOnly;
+      truncateBtn.disabled = !hasItem || readOnly;
+      dropBtn.disabled = !hasItem;
+      addRowBtn.disabled = readOnly;
+    }
+
+    function renderSortOptions(){
+      sortSelect.innerHTML = '<option value="">Sort: auto</option>';
+      state.columns.forEach(c=>{
+        const o1 = document.createElement('option');
+        o1.value = c+':asc'; o1.textContent = `▲ ${c}`;
+        const o2 = document.createElement('option');
+        o2.value = c+':desc'; o2.textContent = `▼ ${c}`;
+        sortSelect.append(o1,o2);
+      });
+    }
+
+    function renderColsChips(){
+      colsChips.innerHTML = '';
+      state.columns.forEach(c=>{
+        const chip = document.createElement('button');
+        chip.className = 'chip'+(state.hiddenCols.has(c)?' is-ghost':'');
+        chip.textContent = state.hiddenCols.has(c) ? `👁️‍🗨️ ${c}` : `👁️ ${c}`;
+        chip.addEventListener('click', ()=>{
+          if(state.hiddenCols.has(c)) state.hiddenCols.delete(c); else state.hiddenCols.add(c);
+          renderTable();
+        });
+        colsChips.appendChild(chip);
+      });
+    }
+(function(){
+  const sb=document.getElementById('sidebar');
+  if(!sb) return;
+  const apply=()=>{const w=sb.classList.contains('hidden')?0:Math.round(sb.getBoundingClientRect().width);document.documentElement.style.setProperty('--sidebar-w',w+'px');};
+  const ro=new ResizeObserver(apply);
+  ro.observe(sb);
+  window.addEventListener('resize',apply,{passive:true});
+  new MutationObserver(apply).observe(sb,{attributes:true,attributeFilter:['class']});
+  apply();
+})();
+
+    function pkOf(row){ return row[state.pk]; }
+
+    /* ===== Long-press + gestion colonnes collées ===== */
+    function onLongPress(el, ms, onFire){
+      let t=null;
+      const clear=()=>{ if(t){ clearTimeout(t); t=null; } };
+      const down=(ev)=>{ t = setTimeout(()=>{ t=null; onFire(ev); }, ms); };
+      const up=()=> clear();
+      const leave=()=> clear();
+      el.addEventListener('mousedown', down);
+      el.addEventListener('touchstart', down, {passive:true});
+      el.addEventListener('mouseup', up);
+      el.addEventListener('mouseleave', leave);
+      el.addEventListener('touchend', up);
+      el.addEventListener('touchcancel', up);
+    }
+
+    function toggleSticky(colName){
+      if(!colName) return;
+      if(state.stickyCols.has(colName)) state.stickyCols.delete(colName);
+      else state.stickyCols.add(colName);
+      renderTable(false);
+      requestAnimationFrame(applyStickyPositions);
+    }
+
+    function applyStickyPositions(){
+      const table = document.getElementById('dataTable');
+      if(!table) return;
+
+      // largeur de la colonne checkbox (left = 0 pour le th)
+      const checkHead = table.querySelector('thead th.sticky-check');
+      let left = (checkHead?.offsetWidth || 38);
+
+      const heads = [...table.querySelectorAll('thead th[data-col]')];
+
+      for(const th of heads){
+        const col = th.dataset.col;
+        const isSticky = th.classList.contains('is-sticky');
+        const cells = [...table.querySelectorAll(`tbody td[data-col="${CSS.escape(col)}"]`)];
+        if(isSticky){
+          th.style.left = left + 'px';
+          th.classList.add('sticky-col-head');
+          cells.forEach(td=>{
+            td.style.left = left + 'px';
+            td.classList.add('sticky-col-cell');
+          });
+          const w = th.offsetWidth || cells[0]?.offsetWidth || 120;
+          left += w;
+        }else{
+          th.style.left = '';
+          th.classList.remove('sticky-col-head');
+          cells.forEach(td=>{
+            td.style.left = '';
+            td.classList.remove('sticky-col-cell');
+          });
+        }
+      }
+    }
+    window.addEventListener('resize', ()=> requestAnimationFrame(applyStickyPositions));
+
+    function renderTable(diffAnimate=true){
+      // THEAD
+      const thead = dataTable.tHead || dataTable.createTHead();
+      thead.innerHTML = '';
+      const trh = thead.insertRow();
+
+      // Col sélection (checkbox) — sticky à gauche
+      const thSel = document.createElement('th');
+      thSel.style.width='38px';
+      thSel.classList.add('sticky-check');
+      thSel.style.left = '0';
+      thSel.innerHTML = `<input type="checkbox" id="checkAll">`;
+      trh.appendChild(thSel);
+      $('#checkAll', thead)?.addEventListener('change', (e)=>{
+        if(e.target.checked){ state.rows.forEach(r=> state.selected.add(pkOf(r))); }
+        else { state.selected.clear(); }
+        renderTable(false);
+        setButtons();
+      });
+
+      // Colonnes data
+      state.columns.forEach(col=>{
+        if(state.hiddenCols.has(col)) return;
+        const th = document.createElement('th');
+        th.textContent = col + (col===state.pk ? ' (pk)' : '');
+        th.title = 'Click: trier • Long-press: fixer/relâcher';
+        th.dataset.col = col;
+
+        // tri au clic court
+        th.addEventListener('click', ()=>{
+          const cur = state.sort;
+          const asc = `${col}:asc`, desc = `${col}:desc`;
+          state.sort = cur===asc ? desc : asc;
+          sortSelect.value = state.sort;
+          refresh();
+        });
+
+        // long-press (1,5 s) -> toggle sticky
+        onLongPress(th, 1500, ()=> toggleSticky(col));
+
+        // marque visuelle si sticky
+        if(state.stickyCols.has(col)) th.classList.add('is-sticky'); else th.classList.remove('is-sticky');
+
+        // point indicateur
+        const dot = document.createElement('span');
+        dot.className = 'sticky-dot';
+        th.appendChild(dot);
+
+        trh.appendChild(th);
+      });
+
+      // TBODY
+      tbody.innerHTML = '';
+      if(!state.rows.length){
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 1 + (state.columns.filter(c=>!state.hiddenCols.has(c)).length);
+        td.className = 'hint';
+        td.style.padding = '14px';
+        td.textContent = 'No rows.';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }else{
+        for(const row of state.rows){
+          const tr = document.createElement('tr');
+          const tdSel = document.createElement('td');
+          const pk = pkOf(row);
+          tdSel.classList.add('sticky-check');
+          tdSel.style.left = '0';
+          tdSel.innerHTML = `<input type="checkbox" ${state.selected.has(pk)?'checked':''} data-pk="${String(pk)}">`;
+          tr.appendChild(tdSel);
+          tdSel.querySelector('input').addEventListener('change',(e)=>{
+            if(e.target.checked) state.selected.add(pk);
+            else state.selected.delete(pk);
+            setButtons();
+          });
+
+          for(const col of state.columns){
+            if(state.hiddenCols.has(col)) continue;
+            const td = document.createElement('td');
+            td.dataset.col = col; /* ← nécessaire pour le sticky left */
+
+            const isPK = (col === state.pk);
+            const val = row[col] ?? '';
+            const safe = (val === null || val === undefined) ? '' : String(val);
+            td.innerHTML = `<span class="cell ${isPK?'pk':''}" ${isPK?'':'contenteditable="true"'} data-col="${col}" data-pk="${String(pk)}"></span>`;
+            const span = td.firstElementChild;
+            span.textContent = safe;
+
+            if(!isPK && state.kind !== 'view'){
+              span.addEventListener('input', ()=>{
+                span.classList.add('edited');
+                const changes = state.dirty.get(pk) || {};
+                changes[col] = span.textContent;
+                state.dirty.set(pk, changes);
+                setButtons();
+              });
+              span.addEventListener('keydown', (e)=>{
+                if(e.key==='Enter'){ e.preventDefault(); span.blur(); }
+              });
+            }
+            tr.appendChild(td);
+          }
+
+          if(tr && tr.animate && diffAnimate){ tr.classList.add('value-changed'); setTimeout(()=>tr.classList.remove('value-changed'), 700); }
+          tbody.appendChild(tr);
+        }
+      }
+
+      // recalcul des positions “left” des colonnes sticky
+      requestAnimationFrame(applyStickyPositions);
+    }
+
+    async function refresh(initial=false, opts={}){
+      if(!state.table){ return; }
+      setStatus('Loading…');
+      try{
+        const res = await API.getTable(state.table, { limit: state.limit, offset: state.offset, q: state.q, sort: state.sort });
+        state.columns = res.columns || [];
+        state.rows = res.rows || [];
+        state.pk = res.pk || opts.pkFallback || state.pk || 'id';
+
+        if(initial){ renderSortOptions(); renderColsChips(); }
+
+        const curSet = new Set(state.rows.map(r=> pkOf(r)));
+        [...state.selected].forEach(k=>{ if(!curSet.has(k)) state.selected.delete(k); });
+
+        const newHash = hashRows(state.rows);
+        const doAnim = state.lastHash && state.lastHash !== newHash;
+        state.lastHash = newHash;
+
+        titleMeta.textContent = ` • pk: ${state.pk} • ${res.total ?? state.rows.length} rows`;
+        renderTable(doAnim);
+        setButtons();
+        setStatus(`Loaded ${state.rows.length}${res.total ? ' / '+res.total : ''}`);
+      }catch(e){
+        toast('Failed to load data');
+        setStatus('Error.');
+      }
+    }
+
+    /* ========= EDIT / SAVE ========= */
+    async function saveEdits(){
+      if(!state.table || state.dirty.size===0 || state.kind==='view') return;
+      saveBtn.disabled = true;
+      try{
+        const rows = [...state.dirty.entries()].map(([pk, changes])=>({ pk, changes }));
+        await API.updateCells({ table: state.table, pk: state.pk, rows });
+        toast('Saved ✔');
+        state.dirty.clear();
+        setButtons();
+        await refresh();
+      }catch(e){
+        toast('Save failed');
+      }finally{
+        saveBtn.disabled = false;
+      }
+    }
+    function discardEdits(){
+      state.dirty.clear();
+      $$('[contenteditable].edited', tbody).forEach(el=> el.classList.remove('edited'));
+      setButtons();
+      refresh();
+    }
+
+    /* ========= ROW OPS ========= */
+    async function addRow(){
+      if(!state.table || state.kind==='view') return;
+      const values = {};
+      state.columns.forEach(c=> { if(c!==state.pk) values[c]=''; });
+      try{
+        const res = await API.insertRow({ table: state.table, values });
+        toast('Row added');
+        await refresh();
+        if(res?.pk !== undefined){
+          const el = $(`.cell[data-pk="${String(res.pk)}"][data-col]`, tbody);
+          el?.focus();
+        }
+      }catch(e){ toast('Insert failed'); }
+    }
+
+    async function deleteSelected(){
+      if(!state.table || state.selected.size===0 || state.kind==='view') return;
+      if(!confirm(`Delete ${state.selected.size} selected row(s)?`)) return;
+      try{
+        await API.deleteRows({ table: state.table, pk: state.pk, pks: [...state.selected] });
+        toast('Deleted');
+        state.selected.clear();
+        setButtons();
+        await refresh();
+      }catch(e){ toast('Delete failed'); }
+    }
+
+    /* ========= EXPORT ========= */
+    async function exportTable(fmt){
+      if(!state.table) return;
+      try{
+        const data = await API.exportTable(state.table, fmt);
+        const blob = new Blob([data], {type: fmt==='csv'?'text/csv':'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${state.table}.${fmt}`;
+        document.body.appendChild(a); a.click(); a.remove();
+        toast(`Exported ${fmt.toUpperCase()}`);
+      }catch(e){ toast('Export failed'); }
+    }
+
+    /* ========= DANGEROUS OPS ========= */
+    async function truncateTable(){
+      if(!state.table || state.kind==='view') return;
+      if(!confirm(`TRUNCATE ${state.table}? This removes all data.`)) return;
+      try{ await API.truncateTable(state.table); toast('Table truncated'); await refresh(); }
+      catch(e){ toast('Truncate failed'); }
+    }
+    async function dropCurrent(){
+      if(!state.table) return;
+      const what = state.kind==='view' ? 'VIEW' : 'TABLE';
+      if(!confirm(`DROP ${what} ${state.table}? This removes it.`)) return;
+      try{
+        if(state.kind==='view') await API.dropView(state.table);
+        else await API.dropTable(state.table);
+        toast(`${what} dropped`);
+        state.table = null;
+        titleTable.textContent = 'Select a table';
+        dataTable.tHead.innerHTML = '';
+        tbody.innerHTML = `<tr><td colspan="99" class="hint" style="padding:14px">Pick a table on the left.</td></tr>`;
+        setButtons();
+        await loadTree();
+      }catch(e){ toast('Drop failed'); }
+    }
+    async function vacuum(){ try{ await API.vacuum(); toast('VACUUM done'); }catch(e){ toast('VACUUM failed'); } }
+
+    /* ========= LIVE REFRESH ========= */
+    function startLive(){
+      stopLive();
+      const sec = clamp(parseInt(liveSec.value||'5',10), 2, 120);
+      state.timers.live = setInterval(()=> refresh(), sec*1000);
+      setStatus(`Live: ${sec}s`);
+    }
+    function stopLive(){
+      if(state.timers.live){ clearInterval(state.timers.live); state.timers.live=null; }
+      setStatus('Live: off');
+    }
+    function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
+
+
+    /* ========= EVENTS ========= */
+    $('#refreshTree')?.addEventListener('click', loadTree);
+    treeFilter?.addEventListener('input', loadTree);
+
+    qInput?.addEventListener('keydown', e=>{ if(e.key==='Enter') searchBtn.click(); });
+    searchBtn?.addEventListener('click', ()=>{ state.q = qInput.value.trim(); state.offset=0; refresh(); });
+
+    sortSelect?.addEventListener('change', ()=>{ state.sort = sortSelect.value; refresh(); });
+    limitSelect?.addEventListener('change', ()=>{ state.limit = parseInt(limitSelect.value,10)||50; refresh(); });
+
+    refreshBtn?.addEventListener('click', ()=> refresh());
+    saveBtn?.addEventListener('click', saveEdits);
+    discardBtn?.addEventListener('click', discardEdits);
+    addRowBtn?.addEventListener('click', addRow);
+    deleteSelBtn?.addEventListener('click', deleteSelected);
+    exportCsvBtn?.addEventListener('click', ()=> exportTable('csv'));
+    exportJsonBtn?.addEventListener('click', ()=> exportTable('json'));
+    truncateBtn?.addEventListener('click', truncateTable);
+    dropBtn?.addEventListener('click', dropCurrent);
+
+    $('#newTableBtn')?.addEventListener('click', async ()=>{
+      const name = prompt('New table name (letters, digits, underscore):');
+      if(!name) return;
+      try{
+        await API.createTable({
+          name,
+          if_not_exists: true,
+          columns: [{name:'id', type:'INTEGER', pk:true}, {name:'created_at', type:'TEXT'}]
+        });
+        toast('Table created'); await loadTree();
+      }catch{ toast('Create failed'); }
+    });
+
+    $('#exportAllBtn')?.addEventListener('click', async ()=>{
+      try{
+        const res = await API.exportAll('csv');
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `database_export.zip`;
+        document.body.appendChild(a); a.click(); a.remove();
+        toast('Exported all');
+      }catch{ toast('Export all failed'); }
+    });
+
+    $('#vacuumBtn')?.addEventListener('click', vacuum);
+
+    liveToggle?.addEventListener('change', (e)=> e.target.checked ? startLive() : stopLive());
+    liveSec?.addEventListener('change', ()=>{ if(liveToggle.checked) startLive(); });
+
+    // Column drawer toggle with keyboard (Shift+C)
+    document.addEventListener('keydown', (e)=>{
+      if(e.shiftKey && e.key.toLowerCase()==='c'){
+        colsDrawer.classList.toggle('open');
+        if(colsDrawer.classList.contains('open')) renderColsChips();
+      }
+    });
+    hideCols?.addEventListener('click', ()=> colsDrawer.classList.remove('open'));
+
+    // Preserve vertical scroll of table area on refresh
+    let preserveScrollY = 0;
+    tableWrap.addEventListener('scroll', ()=> preserveScrollY = tableWrap.scrollTop);
+    const origRefresh = refresh;
+    refresh = async function(initial=false, opts={}){
+      await origRefresh(initial, opts);
+      tableWrap.scrollTop = preserveScrollY;
+    }
+
+    // Init
+    loadTree();
+    setButtons();
+  })();
+  </script>
+</body>
+</html>

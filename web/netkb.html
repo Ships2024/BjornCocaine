@@ -1,54 +1,590 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bjorn Cyberviking - NetKB</title>
-    <link rel="icon" href="web/images/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="web/css/styles.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
-    <script src="web/scripts/netkb.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Bjorn Cyberviking – NetKB</title>
+  <link rel="icon" href="/web/images/favicon.ico" type="image/x-icon" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#333" />
+  <link rel="stylesheet" href="/web/css/global.css" />
+  <script src="/web/js/global.js" defer></script>
 
+  <style>
+    :root{
+      --kb-chip:           var(--c-chip-bg, rgba(255,255,255,.04));
+      --kb-pill:           var(--c-pill-bg, rgba(0,0,0,.25));
+      --kb-hostname-bg:    color-mix(in oklab, var(--acid) 16%, transparent);
+      --kb-ip-bg:          color-mix(in oklab, #18f0ff 18%, transparent);
+      --kb-mac-bg:         color-mix(in oklab, var(--muted) 10%, transparent);
+      --kb-vendor-bg:      color-mix(in oklab, #b18cff 16%, transparent);
+      --kb-ports-bg:       color-mix(in oklab, #5fd1ff 16%, transparent);
+      --kb-essid-bg:       color-mix(in oklab, #00e6c3 16%, transparent);
+
+      --kb-offline-bg:     color-mix(in oklab, var(--bg-2, #0b0f14) 88%, black 12%);
+      --kb-offline-brd:    color-mix(in oklab, var(--c-border-strong) 60%, transparent);
+      --kb-offline-ring:   color-mix(in oklab, #ff5b5b 30%, transparent);
+
+      --kb-badge-shimmer:  linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
+    }
+
+    body{ background:var(--grad-bg-1),var(--grad-bg-2),var(--bg) }
+    .main{ padding:16px }
+
+    /* ============ Toolbar sticky (amélioré) ============ */
+    .netkb-toolbar-wrap{
+      position:sticky;
+      top: calc(var(--h-topbar, 0px) - 56px);
+      z-index:500;
+      backdrop-filter:saturate(1.1) blur(6px);
+    }
+    .netkb-toolbar{
+      position:relative; /* pour le popover */
+      display:flex; gap:12px; align-items:center; justify-content:flex-end;
+      margin-bottom:12px;
+      border:1px solid var(--c-border-strong);
+      padding:8px 10px;
+      box-shadow:var(--shadow);
+      background: color-mix(in oklab, var(--panel) 88%, transparent);
+      border-radius: 16px;
+    }
+
+    .segmented{
+      display:inline-flex; background:var(--panel); border:1px solid var(--c-border-strong);
+      border-radius:999px; padding:4px; box-shadow:var(--shadow);
+    }
+    .segmented button{
+      appearance:none; border:0; background:transparent; color:var(--muted);
+      font-weight:700; padding:8px 14px; border-radius:999px; cursor:pointer;
+      transition:background .15s ease, color .15s ease, transform .1s ease;
+    }
+    .segmented button[aria-pressed="true"]{
+      background:var(--grad-card); color:var(--ink);
+      box-shadow:inset 0 0 0 1px var(--c-border-hi), 0 6px 24px var(--glow-weak);
+      transform:translateY(-1px);
+    }
+
+    /* Switch (Show offline) */
+    .kb-switch{
+      display:inline-flex; align-items:center; gap:10px; font-weight:700; color:var(--muted);
+      background:var(--panel); border:1px solid var(--c-border-strong); border-radius:999px; padding:6px 10px;
+    }
+    .kb-switch input{ display:none }
+    .kb-switch .track{
+      width:44px; height:24px; border-radius:999px; background:var(--c-panel-2);
+      position:relative; border:1px solid var(--c-border);
+    }
+    .kb-switch .thumb{
+      position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+      background:var(--ink); box-shadow:0 2px 8px rgba(0,0,0,.4); transition:left .18s ease, background .18s ease;
+    }
+    /* IMPORTANT: ~ et pas + (il y a un <span> avant .track) */
+    .kb-switch input:checked ~ .track .thumb{ left:22px; background:var(--acid) }
+    .kb-switch[data-on="true"]{ color:var(--ink) }
+
+    /* Loupe */
+    .icon-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:40px; height:40px; border-radius:12px;
+      background:var(--panel); border:1px solid var(--c-border-strong);
+      box-shadow:var(--shadow); cursor:pointer;
+      transition:transform .12s ease, box-shadow .12s ease;
+    }
+    .icon-btn:hover{ transform:translateY(-1px); box-shadow:var(--shadow-hover) }
+    .icon-btn svg{ width:20px; height:20px; fill:var(--ink) }
+
+    .search-pop{
+      position:absolute; right:8px; top:54px; /* sous la toolbar */
+      display:none; min-width:260px; background:var(--panel);
+      border:1px solid var(--c-border-strong); border-radius:12px; padding:10px;
+      box-shadow:var(--shadow-hover);
+    }
+    .search-pop.show{ display:block }
+    .search-pop input{
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--c-border);
+      background:var(--c-panel-2); color:var(--ink); font-weight:700;
+      outline: none;
+    }
+    .search-hint{ margin-top:6px; font-size:.85rem; color:var(--muted) }
+
+    /* ============ Containers ============ */
+    /* .netkb-container{ display:grid; gap:16px; min-height:calc(100dvh - var(--h-topbar) - var(--h-bottombar)) } */
+
+    .netkb-container{ display:grid; gap:16px; }
+    .hidden{ display:none !important }  /* empêche double affichage */
+
+    /* ============ Cards (Grid/List) ============ */
+    .card-container{
+      display:flex; flex-wrap:wrap; gap:12px; align-items:stretch; justify-content:center;
+    }
+    .card{
+      background:var(--grad-card); color:var(--ink);
+      border:1px solid var(--c-border-strong); border-radius:18px; box-shadow:var(--shadow);
+      width:min(380px, 100%); padding:12px; display:flex; flex-direction:column; gap:10px;
+      transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+    }
+    .card:hover{ box-shadow:var(--shadow-hover); border-color:var(--c-border-hi); transform:translateY(-1px) }
+    .card.alive .card-title{ color:var(--ok) }
+
+    .card.not-alive{
+      background:var(--kb-offline-bg);
+      border-color:var(--kb-offline-brd);
+      color:color-mix(in oklab, var(--muted) 90%, var(--ink) 10%);
+      box-shadow:0 0 0 1px var(--kb-offline-brd),
+                 0 0 0 2px color-mix(in oklab, var(--kb-offline-ring) 26%, transparent),
+                 var(--shadow);
+    }
+    .card.not-alive .card-title{ color:color-mix(in oklab, var(--muted) 85%, var(--ink) 15%) }
+
+    .card-content{ display:flex; flex-direction:column; gap:6px; flex:1 }
+    .card-title{ font-size:1.1rem; font-weight:800; margin:0 }
+    .card-section{ display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+    .card.list{ width:100%; max-width:none; flex-direction:row; align-items:center }
+    .card.list .card-title{ font-size:1rem }
+
+    /* Chips */
+    .chip{ display:inline-block; padding:.32rem .7rem; border-radius:999px; border:1px solid var(--c-border-strong);
+           background:var(--kb-chip); color:var(--ink); font-weight:700; font-size:.92rem; }
+    .chip.host{ background:var(--kb-hostname-bg) }
+    .chip.ip{ background:var(--kb-ip-bg) }
+    .chip.mac{ background:var(--kb-mac-bg); color:var(--muted) }
+    .chip.vendor{ background:var(--kb-vendor-bg) }
+    .chip.essid{ background:var(--kb-essid-bg) }
+    .chip.port{ background:var(--kb-ports-bg); border-color:var(--c-border-hi) }
+    .port-bubbles{ display:flex; flex-wrap:wrap; gap:6px }
+
+    /* Badges */
+    .status-container{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center }
+    .badge{
+      background:var(--c-panel-2); color:var(--ink); border:1px solid var(--c-border);
+      border-radius:14px; padding:8px 10px; min-width:160px; text-align:center;
+      box-shadow:var(--shadow); transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+      position:relative;
+    }
+    .badge .badge-header{ font-weight:800; opacity:.95 }
+    .badge .badge-status{ font-weight:900 }
+    .badge .badge-timestamp{ font-size:.85em; opacity:.9 }
+    .badge.clickable{ cursor:pointer }
+    .badge:hover{ transform:translateY(-1px); box-shadow:var(--shadow-hover) }
+
+    .badge.success{ background:linear-gradient(180deg, color-mix(in oklab, var(--ok) 12%, transparent), transparent) }
+    .badge.failed { background:linear-gradient(180deg, color-mix(in oklab, var(--danger) 18%, transparent), transparent) }
+    .badge.pending{ background:linear-gradient(180deg, color-mix(in oklab, var(--muted) 12%, transparent), transparent) }
+    .badge.expired{ background:linear-gradient(180deg, color-mix(in oklab, var(--warning) 18%, transparent), transparent) }
+    .badge.cancelled{ background:linear-gradient(180deg, color-mix(in oklab, var(--c-panel) 18%, transparent), transparent) }
+
+    /* Running → shimmer horiz + sheen diagonal + pulse */
+    .badge.running{
+      background:linear-gradient(180deg, color-mix(in oklab, #18f0ff 14%, transparent), transparent);
+      overflow:hidden;
+      animation:badgePulse 1.6s ease-in-out infinite;
+    }
+    .badge.running::after{
+      content:""; position:absolute; inset:0; background:var(--kb-badge-shimmer);
+      animation:shimmer 1.8s linear infinite;
+    }
+    .badge.running::before{
+      content:""; position:absolute; inset:-20%;
+      background:linear-gradient(130deg, transparent 40%, rgba(255,255,255,.06) 50%, transparent 60%);
+      animation:sheen 2.2s ease-in-out infinite;
+    }
+    @keyframes shimmer{ 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+    @keyframes sheen{ 0%{ transform:translateX(-30%) } 100%{ transform:translateX(30%) } }
+    @keyframes badgePulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(24,240,255,.12) } 50%{ box-shadow:0 0 0 8px rgba(24,240,255,.04) } }
+
+    /* Table */
+    .table-wrap{
+      border:1px solid var(--c-border-strong); border-radius:14px; overflow:auto;
+      background:var(--panel); box-shadow:var(--shadow);
+    }
+    table{ width:100%; border-collapse:separate; border-spacing:0 }
+    thead th{
+      position:sticky; top:0; z-index:2; background:var(--c-panel); color:var(--ink);
+      border-bottom:1px solid var(--c-border-strong); padding:10px; text-align:left; white-space:nowrap; cursor:pointer;
+    }
+    tbody td{
+      border-bottom:1px solid var(--c-border); padding:10px; white-space:nowrap; text-align:center;
+    }
+    th:first-child, td:first-child{ position:sticky; left:0; background:var(--panel); z-index:3 }
+    .filter-icon{ width:16px; height:16px; margin-left:6px; vertical-align:middle }
+
+    /* Highlight du terme recherché */
+    mark.hl{
+      background: color-mix(in oklab, var(--acid) 25%, transparent);
+      color: var(--ink);
+      padding: 0 .15em;
+      border-radius: 4px;
+    }
+
+    /* Focus & accessibilité */
+    .segmented button:focus-visible,
+    .icon-btn:focus-visible,
+    .kb-switch:has(input:focus-visible){
+      outline: 2px solid var(--acid);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--acid) 25%, transparent);
+    }
+
+    /* Mobile : masquer Grid, forcer list/table */
+    @media (max-width:720px){
+      .card{ width:100% }
+      thead th, tbody td{ min-width:120px; font-size:.94rem }
+      .segmented button[data-view="grid"]{ display:none }
+    }
+  </style>
 </head>
 <body>
-    <div class="toolbar" id="mainToolbar">
-        <button type="button" onclick="window.location.href='/index.html'" title="Playground">
-            <img src="/web/images/console_icon.png" alt="Bjorn" style="height: 50px;">
+  <main class="main" id="main">
+    <!-- Toolbar (sticky) -->
+    <div class="netkb-toolbar-wrap">
+      <div class="netkb-toolbar" id="toolbar">
+        <!-- Loupe -->
+        <button class="icon-btn" id="btnSearch" title="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.9.9l.3.3v.8L20 21.5 21.5 20l-6-6zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
+          </svg>
         </button>
-        <button type="button" onclick="window.location.href='/config.html'" title="Config">
-            <img src="/web/images/config_icon.png" alt="Icon_config" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/network.html'" title="Network">
-            <img src="/web/images/network_icon.png" alt="Icon_network" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/netkb.html'" title="NetKB">
-            <img src="/web/images/netkb_icon.png" alt="Icon_netkb" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/credentials.html'" title="Credentials">
-            <img src="/web/images/cred_icon.png" alt="Icon_cred" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/loot.html'" title="Loot">
-            <img src="/web/images/loot_icon.png" alt="Icon_loot" style="height: 50px;">
-        </button>
-    </div>
-    <div class="console-toolbar">
-        <button type="button" class="toolbar-button" onclick="adjustNetkbFontSize(-1)" title="-">
-            <img src="/web/images/less.png" alt="Icon_less" style="height: 50px;">
-        </button>
-
-        <button id="toggle-toolbar" type="button" class="toolbar-button" onclick="toggleNetkbToolbar()" data-open="false">
-            <img id="toggle-icon" src="/web/images/hide.png" alt="Toggle Toolbar" style="height: 50px;">
-        </button>
-
-        <button type="button" class="toolbar-button" onclick="adjustNetkbFontSize(1)" title="+">
-            <img src="/web/images/plus.png" alt="Icon_plus" style="height: 50px;">
-        </button>
-    </div>
-    <div class="netkb-container">
-        <div id="netkb-table" class="scrollable-table">
-            <!-- The table will be inserted here by JavaScript -->
+        <div class="search-pop" id="searchPop">
+          <input id="searchInput" type="text" placeholder="Search IP / Hostname / MAC / Vendor / Ports / ESSID / Action…">
+          <div class="search-hint">Type to filter. <kbd>Esc</kbd> to close.</div>
         </div>
+
+        <!-- View segmented -->
+        <div class="segmented" id="viewSeg">
+          <button type="button" data-view="grid"  aria-pressed="true">Grid</button>
+          <button type="button" data-view="list"  aria-pressed="false">List</button>
+          <button type="button" data-view="table" aria-pressed="false">Table</button>
+        </div>
+
+        <!-- Show offline -->
+        <label class="kb-switch" id="offlineSwitch" data-on="false">
+          <input type="checkbox" id="toggleOffline">
+          <span>Show offline</span>
+          <span class="track"><span class="thumb"></span></span>
+        </label>
+      </div>
     </div>
+
+    <!-- Content -->
+    <div class="netkb-container">
+      <div id="card-container" class="card-container"></div>
+      <div id="table-container" class="table-wrap hidden"></div>
+    </div>
+  </main>
+
+  <script>
+    let sortOrder = 1;
+    let showNotAlive = false;
+    let viewMode = 'grid';
+    let currentSort = 'ip';
+    let currentFilter = null;
+    let originalData = [];
+    let searchTerm = '';
+
+    /* -------- Helpers stockage préférences -------- */
+    const getPref = (k, d) => localStorage.getItem(k) ?? d;
+    const setPref = (k, v) => localStorage.setItem(k, v);
+
+    /* -------- Fetch -------- */
+    function fetchNetkbData(){
+      fetch('/netkb_data')
+        .then(r => r.json())
+        .then(data => { originalData = [...data]; refreshDisplay(); })
+        .catch(e => console.error('NetKB fetch error:', e));
+    }
+
+    /* -------- Render: Cards -------- */
+    function renderCards(data){
+      const host = document.getElementById('card-container');
+      host.innerHTML = '';
+      data.forEach(item => {
+        if (!showNotAlive && !item.alive) return;
+
+        const el = document.createElement('div');
+        el.className = 'card ' + (viewMode==='list' ? 'list ' : '') + (item.alive ? 'alive' : 'not-alive');
+
+        const titleText = (item.hostname && item.hostname !== 'N/A') ? hl(item.hostname) : hl(item.ip || 'N/A');
+
+        el.innerHTML = `
+          <div class="card-content">
+            <h3 class="card-title">${titleText}</h3>
+            ${item.ip ? `<div class="card-section"><strong>IP:</strong> <span class="chip ip">${hl(item.ip)}</span></div>` : ''}
+            ${item.mac ? `<div class="card-section"><strong>MAC:</strong> <span class="chip mac">${hl(item.mac)}</span></div>` : ''}
+            ${item.vendor && item.vendor !== 'N/A' ? `<div class="card-section"><strong>Vendor:</strong> <span class="chip vendor">${hl(item.vendor)}</span></div>` : ''}
+            ${item.essid && item.essid !== 'N/A' ? `<div class="card-section"><strong>ESSID:</strong> <span class="chip essid">${hl(item.essid)}</span></div>` : ''}
+            ${item.ports && item.ports.length ? `<div class="card-section"><strong>Open Ports:</strong> <div class="port-bubbles">${renderPorts(item.ports)}</div></div>` : ''}
+          </div>
+          <div class="status-container">${renderActions(item.actions, item.ip)}</div>
+        `;
+        host.appendChild(el);
+      });
+    }
+
+    /* -------- Render: Table -------- */
+    function renderTable(data){
+      const host = document.getElementById('table-container');
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('hostname')">Hostname
+                <img src="/web/images/filter_icon.png" class="filter-icon" onclick="filterBy('toggleAlive', event)" title="Filter">
+              </th>
+              <th onclick="sortBy('ip')">IP</th>
+              <th onclick="sortBy('mac')">MAC</th>
+              <th onclick="sortBy('essid')">ESSID</th>
+              <th onclick="sortBy('vendor')">Vendor</th>
+              <th onclick="sortBy('ports')">Ports
+                <img src="/web/images/filter_icon.png" class="filter-icon" onclick="filterBy('hasPorts', event)" title="Filter">
+              </th>
+              <th>Actions
+                <img src="/web/images/filter_icon.png" class="filter-icon" onclick="filterBy('hasActions', event)" title="Filter">
+              </th>
+            </tr>
+          </thead><tbody>
+      `;
+      data.filter(i => showNotAlive || i.alive).forEach(item => {
+        const hostText = (item.hostname && item.hostname !== 'N/A') ? hl(item.hostname) : hl(item.ip || 'N/A');
+        html += `
+          <tr>
+            <td><span class="chip host">${hostText}</span></td>
+            <td>${item.ip ? `<span class="chip ip">${hl(item.ip)}</span>` : 'N/A'}</td>
+            <td>${item.mac ? `<span class="chip mac">${hl(item.mac)}</span>` : 'N/A'}</td>
+            <td>${item.essid && item.essid !== 'N/A' ? `<span class="chip essid">${hl(item.essid)}</span>` : 'N/A'}</td>
+            <td>${item.vendor && item.vendor !== 'N/A' ? `<span class="chip vendor">${hl(item.vendor)}</span>` : 'N/A'}</td>
+            <td><div class="port-bubbles">${renderPorts(item.ports)}</div></td>
+            <td><div class="status-container">${renderActions(item.actions, item.ip)}</div></td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+      host.innerHTML = html;
+    }
+
+    /* -------- Helpers -------- */
+    function hl(text){
+      if (!searchTerm) return text;
+      const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return String(text).replace(new RegExp(esc(searchTerm), 'ig'), m => `<mark class="hl">${m}</mark>`);
+    }
+
+    function renderPorts(ports=[]){
+      if (!ports || ports.length === 0 || (ports.length === 1 && !ports[0])) return '';
+      return ports.filter(Boolean).map(p => `<span class="chip port">${hl(String(p))}</span>`).join(' ');
+    }
+
+    function renderActions(actions=[], ip){
+      if (!actions || actions.length === 0) return '';
+      function parseRaw(raw){
+        const m = /^([a-z_]+)_(\d{8})_(\d{6})$/i.exec(raw||""); if(!m) return null;
+        const s=m[1].toLowerCase(), y=m[2].slice(0,4), mo=m[2].slice(4,6), d=m[2].slice(6,8);
+        const hh=m[3].slice(0,2), mm=m[3].slice(2,4), ss=m[3].slice(4,6);
+        const ts = Date.parse(`${y}-${mo}-${d}T${hh}:${mm}:${ss}Z`) || 0;
+        return {status:s, ts, y, mo, d, hh, mm, ss};
+      }
+      const map = new Map();
+      for (const a of actions){
+        if (!a || !a.name || !a.status) continue;
+        const p = parseRaw(a.status); if (!p) continue;
+        const prev = map.get(a.name);
+        if (!prev || p.ts > prev.parsed.ts) map.set(a.name, {...a, parsed:p});
+      }
+      const list = Array.from(map.values()).sort((a,b)=> b.parsed.ts - a.parsed.ts);
+      const label = s => ({success:'Success', failed:'Failed', fail:'Failed', running:'Running', pending:'Pending', expired:'Expired', cancelled:'Cancelled'})[s]||s;
+
+      return list.map(a=>{
+        const s = a.parsed.status === 'fail' ? 'failed' : a.parsed.status;
+        const clickable = ['success','failed','expired','cancelled'].includes(s);
+        const date = `${a.parsed.d} ${getMonthName(a.parsed.mo)} ${a.parsed.y}`;
+        const time = `${a.parsed.hh}:${a.parsed.mm}:${a.parsed.ss}`;
+        const click = clickable ? `onclick="handleBadgeClick('${ip||''}','${a.name}')"` : '';
+        return `
+          <div class="badge ${s} ${clickable?'clickable':''}" ${click}>
+            <div class="badge-header">${hl(a.name)}</div>
+            <div class="badge-status">${label(s)}</div>
+            <div class="badge-timestamp"><div>${date}</div><div>at ${time}</div></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function handleBadgeClick(ip, actionName){
+      if (!confirm(`Are you sure you want to remove the action "${actionName}" for IP "${ip}"?`)) return;
+      removeAction(ip, actionName);
+    }
+
+    function removeAction(ip, action){
+      fetch('/delete_netkb_action', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ip, action })
+      })
+      .then(r => { if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(j => {
+        if (j.status === 'success'){ window.toast?.(j.message || 'Action removed','success'); fetchNetkbData(); }
+        else throw new Error(j.message || 'Failed');
+      })
+      .catch(e => { console.error(e); alert(`Error: ${e.message}`); });
+    }
+
+    function getMonthName(m){ return ['January','February','March','April','May','June','July','August','September','October','November','December'][parseInt(m)-1] }
+
+    /* -------- Sorting / Filtering / Searching -------- */
+    function sortBy(key){
+      if (currentSort === key) sortOrder = -sortOrder; else { currentSort = key; sortOrder = 1; }
+      refreshDisplay();
+    }
+    function filterBy(criteria, ev){
+      ev?.stopPropagation?.();
+      currentFilter = (currentFilter === criteria) ? null : criteria;
+      refreshDisplay();
+    }
+
+    const norm = v => (v ?? '').toString().toLowerCase();
+    function matchesSearch(item){
+      if (!searchTerm) return true;
+      const q = searchTerm;
+      if (norm(item.hostname).includes(q)) return true;
+      if (norm(item.ip).includes(q)) return true;
+      if (norm(item.mac).includes(q)) return true;
+      if (norm(item.vendor).includes(q)) return true;
+      if (norm(item.essid).includes(q)) return true;
+      if (Array.isArray(item.ports) && item.ports.some(p => norm(p).includes(q))) return true;
+      if (Array.isArray(item.actions) && item.actions.some(a => norm(a?.name).includes(q))) return true;
+      return false;
+    }
+
+    /* -------- Modes + Toolbar sync -------- */
+    function isMobile(){ return window.matchMedia('(max-width: 720px)').matches }
+
+    function setView(mode){
+      // En mobile, on interdit 'grid' → convertit en 'list'
+      if (isMobile() && mode === 'grid') mode = 'list';
+      viewMode = mode;
+
+      const cards = document.getElementById('card-container');
+      const table = document.getElementById('table-container');
+      if (mode === 'table'){
+        cards.classList.add('hidden');
+        table.classList.remove('hidden');
+      } else {
+        table.classList.add('hidden');
+        cards.classList.remove('hidden');
+      }
+      document.querySelectorAll('#viewSeg button').forEach(b=>{
+        b.setAttribute('aria-pressed', String(b.dataset.view===mode));
+      });
+
+      setPref('netkb:view', mode);
+      refreshDisplay();
+    }
+
+    function setOffline(on){
+      showNotAlive = !!on;
+      const sw = document.getElementById('offlineSwitch');
+      sw.dataset.on = String(on);
+      document.getElementById('toggleOffline').checked = on;
+      setPref('netkb:offline', String(on));
+      refreshDisplay();
+    }
+
+    /* -------- Paint orchestrator -------- */
+    function refreshDisplay(){
+      let data = [...originalData];
+
+      // search
+      if (searchTerm){
+        data = data.filter(matchesSearch);
+      }
+
+      // filters
+      if (currentFilter){
+        data = data.filter(item => {
+          switch(currentFilter){
+            case 'hasActions': return item.actions && item.actions.some(a => a && a.status);
+            case 'hasPorts':   return item.ports && item.ports.some(Boolean);
+            case 'toggleAlive':return !item.alive;
+            default: return true;
+          }
+        });
+      }
+
+      // sort
+      if (currentSort){
+        const ipToNumber = ip => !ip ? 0 : ip.split('.').reduce((a,p)=>(a<<8)+(+p||0),0);
+        data.sort((a,b)=>{
+          if (currentSort==='ports'){
+            const ap=(a.ports?.filter(Boolean).length)||0, bp=(b.ports?.filter(Boolean).length)||0;
+            return sortOrder*(ap-bp);
+          }
+          if (currentSort==='ip'){ return sortOrder*(ipToNumber(a.ip)-ipToNumber(b.ip)); }
+          const av=(a[currentSort]||'').toString(), bv=(b[currentSort]||'').toString();
+          return sortOrder*av.localeCompare(bv, undefined, {numeric:true});
+        });
+      }
+
+      // render
+      if (viewMode === 'table') renderTable(data);
+      else renderCards(data);
+    }
+
+    /* -------- Search UI logic -------- */
+    const btnSearch = document.getElementById('btnSearch');
+    const pop = document.getElementById('searchPop');
+    const input = document.getElementById('searchInput');
+
+    btnSearch.addEventListener('click', () => {
+      pop.classList.toggle('show');
+      if (pop.classList.contains('show')){
+        input.focus();
+        input.select();
+      }
+    });
+    document.addEventListener('click', (e)=>{
+      if (!pop.contains(e.target) && !btnSearch.contains(e.target)){
+        pop.classList.remove('show');
+      }
+    });
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === 'Escape') pop.classList.remove('show');
+    });
+
+    let searchDebounce;
+    input.addEventListener('input', (e)=>{
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(()=>{
+        searchTerm = e.target.value.trim().toLowerCase();
+        setPref('netkb:search', e.target.value.trim());
+        refreshDisplay();
+      }, 120);
+    });
+
+    /* -------- Boot -------- */
+    document.addEventListener('DOMContentLoaded', () => {
+      // listeners
+      document.querySelectorAll('#viewSeg button').forEach(btn=>{
+        btn.addEventListener('click', ()=> setView(btn.dataset.view));
+      });
+      document.getElementById('toggleOffline').addEventListener('change', (e)=> setOffline(e.target.checked));
+      window.addEventListener('resize', ()=>{ if (isMobile() && viewMode === 'grid') setView('list'); });
+
+      // restaurer préférences
+      const savedView = getPref('netkb:view', isMobile() ? 'list' : 'grid');
+      const savedOffline = getPref('netkb:offline', 'false') === 'true';
+      const savedSearch = getPref('netkb:search', '');
+      if (savedSearch) { searchTerm = savedSearch; input.value = savedSearch; }
+
+      setView(isMobile() && savedView==='grid' ? 'list' : savedView);
+      setOffline(savedOffline);
+
+      // s'assurer que l'état visuel du switch correspond bien au checkbox initial
+      setOffline(document.getElementById('toggleOffline').checked || savedOffline);
+
+      fetchNetkbData();
+      setInterval(fetchNetkbData, 5000);
+    });
+  </script>
 </body>
 </html>

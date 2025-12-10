@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Bjorn Cyberviking - Update and Backup Management</title>
+  <link rel="icon" href="web/images/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="web/css/global.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" sizes="192x192" href="web/images/icon-192x192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#333">
+  <script src="web/js/global.js"></script>
+
+  <style>
+    /* ======================================================================
+       Page-scoped CSS (kept minimal) — uses your global tokens
+       ====================================================================== */
+    .main-container{display:flex;height:calc(100vh - 60px);width:100%;position:relative}
+    .section-list{list-style-type:none;padding:0;margin:0;flex-grow:1}
+    .list-item{display:flex;align-items:center;padding:12px;cursor:pointer;border-radius:var(--radius);margin-bottom:12px;transition:box-shadow .3s, background-color .3s, border-color .3s;background:var(--grad-card);border:1px solid var(--c-border);box-shadow:var(--shadow)}
+    .list-item:hover{box-shadow:var(--shadow-hover)}
+    .list-item.selected{border:1px solid #00e764}
+    .list-item img{margin-right:10px}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    .right-panel{flex:1;display:flex;flex-direction:column;padding:20px;overflow-y:auto;box-sizing:border-box;background-color:#1e1e1e}
+    .content-section{display:none}
+    .content-section.active{display:block}
+    form{margin-top:20px}
+    form label{display:block;margin-bottom:5px;color:white}
+    form input[type="text"]{width:100%;padding:8px;margin-bottom:10px;border:1px solid #555;border-radius:4px;background-color:#07422f40;color:#fff;cursor:text;pointer-events:auto}
+    form input[type="text"]:focus{outline:none;border-color:#007acc;background-color:#3d3d3d}
+    form input[type="text"]:hover{border-color:#666}
+    .default-badge{display:inline-block;padding:2px 8px;margin-left:8px;background-color:#007acc;color:white;border-radius:12px;font-size:.85em;font-weight:700}
+    /* ===== Bjorn-scoped Modal (avoid conflicts with global.js) ===== */
+    .bj-modal{display:none;position:fixed;z-index:1000;inset:0;overflow:auto;background-color:rgba(0,0,0,.5)}
+    .bj-modal__content{background-color:#2d2d2d;margin:10% auto;padding:20px;border:1px solid #888;width:80%;max-width:fit-content;border-radius:8px;z-index:1001;color:#fff}
+    .bj-modal__close{color:#aaa;float:right;font-size:28px;font-weight:700;cursor:pointer}
+    .bj-modal__close:hover,.bj-modal__close:focus{color:#fff;text-decoration:none}
+    /* ===== Bjorn-scoped Loading Overlay ===== */
+    .bj-loading-overlay{display:none;position:fixed;z-index:1100;inset:0;background-color:rgba(0,0,0,.7);justify-content:center;align-items:center}
+    .bj-rotating-arrow{width:50px;height:50px;border:5px solid transparent;border-top:5px solid #007acc;border-right:5px solid #007acc;border-radius:50%;animation:spin 1.5s linear infinite,bj-pulse 1.5s ease-in-out infinite}
+    @keyframes bj-pulse{0%{box-shadow:0 0 0 0 rgba(0,122,204,.7)}70%{box-shadow:0 0 0 20px rgba(0,122,204,0)}100%{box-shadow:0 0 0 0 rgba(0,122,204,0)}}
+    /* Update message bubble */
+    #bj-update-message{background-color:#28a745;color:#fff;padding:12px 20px;border-radius:25px;display:inline-block;margin-bottom:15px;box-shadow:0 4px 6px rgba(0,0,0,.1);font-size:16px;max-width:100%;word-wrap:break-word}
+    #bj-update-message.fade-in{animation:bjFadeIn .5s ease-in-out}
+    @keyframes bjFadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+    /* Responsive */
+    @media (max-width:768px){.main-container{flex-direction:column}}
+    @media (min-width:769px){.menu-icon{display:none}.side-menu{transform:translateX(0);position:relative;height:98%;z-index:10000}}
+    .form-control{cursor:text;pointer-events:auto;background-color:#2d2d2d;color:#ffffff}
+    .backups-table button.loading{position:relative;pointer-events:none;opacity:.6;background-color:#2d2d2d;color:#fff;border:#007acc}
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidehead">
+      <div class="spacer"></div>
+      <button class="btn" id="hideSidebar"><span class="icon">⟵</span><span class="label">Hide</span></button>
+    </div>
+
+    <li class="list-item" data-section="backup-section"><img src="/web/images/backuprestore.png" alt="Icon_backup" style="height:72px;"><span>Backup / Restore</span></li>
+    <li class="list-item" data-section="update-section"><img src="/web/images/update.png" alt="Icon_update" style="height:72px;"><span>Update</span></li>
+
+    <div class="sidecontent" id="sidecontent">
+      <div class="content-section" id="logs-section-content">
+        <h2>Clear Logs</h2>
+        <button class="btn danger" onclick="clear_logs()">Clear Logs</button>
+      </div>
+    </div>
+
+
+    <div id="empty-list-hint" style="display:none;opacity:.8;margin-top:8px;font-size:.95em">No attacks found. Import a .py attack with “Add Attack”.</div>
+  </aside>
+
+  <div class="main" id="main">
+    <!-- Backup and Restore Section -->
+    <div class="content-section" id="backup-section-content">
+      <h2>Backup and Restore</h2>
+      <form id="backup-form">
+        <label for="backup-description">Backup Description:</label>
+        <input type="text" id="backup-description" class="form-control" name="description" required>
+        <button type="submit" class="btn">Create Backup</button>
+      </form>
+
+      <h3>Backup List</h3>
+      <table id="backups-table" class="backups-table">
+        <thead><tr><th>Date</th><th>Description</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Update Application Section -->
+    <div class="content-section" id="update-section-content">
+      <div id="bj-update-message" style="margin-bottom:10px;"></div>
+      <h2>Update Application (From Github)</h2>
+      <button class="btn" onclick="bj_checkUpdate()">Check for Updates</button>
+      <button class="btn" onclick="bj_update_application('upgrade')">Upgrade (With options to keep your data)</button>
+      <button class="btn danger" onclick="bj_update_application('fresh_start')">Fresh Start (Replace everything)</button>
+    </div>
+  </div>
+
+  <!-- Bjorn-scoped Loading Overlay -->
+  <div id="bj-loading-overlay" class="bj-loading-overlay"><div class="bj-rotating-arrow"></div></div>
+
+  <!-- Bjorn-scoped Restore/Update Modal -->
+  <div id="bj-restore-modal" class="bj-modal" aria-hidden="true" role="dialog">
+    <div class="bj-modal__content" role="document">
+      <span class="bj-modal__close" id="bj-modal-close" aria-label="Close">&times;</span>
+      <h2>Restore Options</h2>
+      <form id="bj-restore-form">
+        <p>Please select the folders to keep during restoration:</p>
+        <label><input type="checkbox" name="keep" value="data"> Keep the <strong>data</strong> folder (/home/bjorn/Bjorn/data)</label><br>
+        <label><input type="checkbox" name="keep" value="resources"> Keep the <strong>resources</strong> folder (/home/bjorn/Bjorn/resources)</label><br>
+        <label><input type="checkbox" name="keep" value="actions"> Keep the <strong>actions</strong> folder (/home/bjorn/Bjorn/actions)</label><br>
+        <label><input type="checkbox" name="keep" value="config"> Keep the <strong>config</strong> folder (/home/bjorn/Bjorn/config)</label><br><br>
+        <button type="submit" class="btn">Restore Backup</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ======================================================================
+    // Bjorn UI helpers — non-blocking toast + confirm over your global.js
+    // ======================================================================
+    const t = (msg, ms=2600) => (typeof window.toast === 'function' ? window.toast(msg, ms) : console.log(msg));
+
+    // Lightweight, non-blocking confirmation; auto-cleans DOM; returns Promise<boolean>
+    async function toastConfirm(message, { okText='Proceed', cancelText='Cancel', timeout=0 } = {}) {
+      return new Promise(resolve => {
+        const box = document.createElement('div');
+        Object.assign(box.style, { position:'fixed', right:'16px', bottom:'16px', zIndex:99999, maxWidth:'460px', background:'rgba(10,16,16,.96)', color:'#eafff6', border:'1px solid rgba(0,255,154,.35)', borderRadius:'12px', padding:'12px 14px', boxShadow:'0 10px 24px rgba(0,0,0,.35)', font:'14px/1.45 system-ui' });
+        box.innerHTML = `
+          <div style="margin-bottom:10px">${message}</div>
+          <div style="display:flex; gap:8px; justify-content:flex-end">
+            <button data-x style="background:#333;border:1px solid #555;color:#fff;padding:6px 10px;border-radius:8px;cursor:pointer">${cancelText}</button>
+            <button data-ok style="background:#00ff9a;border:1px solid #00ff9a33;color:#001b11;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:700">${okText}</button>
+          </div>`;
+        document.body.appendChild(box);
+        const done = v => { try { box.remove(); } catch {} resolve(v); };
+        box.querySelector('[data-ok]').addEventListener('click', () => done(true));
+        box.querySelector('[data-x]').addEventListener('click',  () => done(false));
+        if (timeout > 0) setTimeout(() => done(false), timeout);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      /* ===== Sections wiring ===== */
+      const sections = {
+        'logs-section':   document.getElementById('logs-section-content'),
+        'backup-section': document.getElementById('backup-section-content'),
+        'update-section': document.getElementById('update-section-content'),
+      };
+
+      const defaultSection = 'backup-section';
+      const defaultSectionElement = document.querySelector(`[data-section="${defaultSection}"]`);
+      if (defaultSectionElement) {
+        defaultSectionElement.classList.add('selected');
+        if (sections[defaultSection]) {
+          sections[defaultSection].classList.add('active');
+          loadBackups();
+        }
+      }
+
+      /* ===== Scoped modal/overlay helpers ===== */
+      const bjModal      = document.getElementById('bj-restore-modal');
+      const bjModalClose = document.getElementById('bj-modal-close');
+
+      function bj_showLoading(){const overlay=document.getElementById('bj-loading-overlay'); if(overlay) overlay.style.display='flex'}
+      function bj_hideLoading(){const overlay=document.getElementById('bj-loading-overlay'); if(overlay) overlay.style.display='none'}
+
+      function hideAllContents(){for (let key in sections) sections[key].classList.remove('active'); document.querySelectorAll('.list-item').forEach(item => item.classList.remove('selected'))}
+
+      function selectSection(event){
+        const clickedItem = event.currentTarget;
+        const section = clickedItem.getAttribute('data-section');
+        hideAllContents();
+        if (sections[section]) {
+          sections[section].classList.add('active');
+          clickedItem.classList.add('selected');
+          if (section === 'backup-section') { loadBackups(); }
+          else if (section === 'update-section') { bj_checkUpdate(); }
+        }
+      }
+
+      document.querySelectorAll('.list-item').forEach(item => item.addEventListener('click', selectSection));
+
+      /* ===== API: Update Check (shows status in green bubble + toast) ===== */
+      window.bj_checkUpdate = function(){
+        fetch('/check_update', { method:'GET', headers:{ 'Content-Type':'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+          const messageDiv = document.getElementById('bj-update-message');
+          if (data.update_available) {
+            messageDiv.innerHTML = `New update available: <strong>${data.latest_version}</strong> (currently on: <strong>${data.current_version}</strong>)`;
+            t('⬆️ Update available');
+          } else {
+            messageDiv.innerHTML = `You are on the latest version: <strong>${data.current_version}</strong>`;
+            t('✅ Latest version already installed');
+          }
+          messageDiv.classList.remove('fade-in'); void messageDiv.offsetWidth; messageDiv.classList.add('fade-in');
+        })
+        .catch(err => {
+          console.error('Error checking updates:', err);
+          const messageDiv = document.getElementById('bj-update-message');
+          messageDiv.innerHTML = `Error checking updates.`;
+          messageDiv.classList.remove('fade-in'); void messageDiv.offsetWidth; messageDiv.classList.add('fade-in');
+          t('⛔ Error while checking updates — see console');
+        });
+      };
+
+      /* ===== Backups: list/load (toast feedback) ===== */
+      function loadBackups(){
+        fetch('/list_backups', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({}) })
+        .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
+        .then(data => {
+          if (data.status === 'success') {
+            const tbody = document.querySelector('#backups-table tbody'); tbody.innerHTML = '';
+            data.backups.forEach(backup => {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td>${backup.date}</td>
+                <td>${backup.description}${backup.is_default ? ' <span class="default-badge">default</span>' : ''}</td>
+                <td style="display:flex;gap:5px;flex-wrap:wrap">
+                  <button class="btn" onclick="bj_openRestoreModal('${backup.filename}')">Restore</button>
+                  ${!backup.is_default ? `
+                    <button class="btn danger" onclick="bj_deleteBackup('${backup.filename}', event)">Delete</button>
+                    <button class="btn" onclick="bj_setAsDefault('${backup.filename}', event)">Set as Default</button>
+                  ` : ''}
+                </td>`;
+              tbody.appendChild(row);
+            });
+            t('✅ Backups loaded');
+          } else {
+            t('⚠️ ' + (data.message || 'Error while loading backups'));
+          }
+        })
+        .catch(error => { console.error('Error loading backups:', error); t('⛔ Failed to load backups — see console'); });
+      }
+
+      /* ===== Create backup (toast feedback, no blocking alert) ===== */
+      const backupForm = document.getElementById('backup-form');
+      backupForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const description = document.getElementById('backup-description').value;
+        const button = backupForm.querySelector('button');
+        bj_showLoading(); button.classList.add('loading');
+
+        fetch('/create_backup', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ description }) })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => {
+          button.classList.remove('loading'); bj_hideLoading();
+          if (data.status === 'success') { t('✅ ' + (data.message || 'Backup created')); loadBackups(); backupForm.reset(); }
+          else { t('⚠️ ' + (data.message || 'Backup failed')); }
+        })
+        .catch(error => { button.classList.remove('loading'); bj_hideLoading(); console.error('Error creating backup:', error); t('⛔ Error while creating the backup — see console'); });
+      });
+
+      /* ===== Set default backup ===== */
+      window.bj_setAsDefault = function(filename, ev){
+        const button = ev?.target; if (button) button.classList.add('loading');
+        fetch('/set_default_backup', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ filename }) })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => {
+          if (button) button.classList.remove('loading');
+          if (data.status === 'success') { t('✅ Default backup set'); loadBackups(); }
+          else { t('⚠️ ' + (data.message || 'Could not set default')); }
+        })
+        .catch(error => { if (button) button.classList.remove('loading'); console.error('Error setting default backup:', error); t('⛔ Failed to set default — see console'); });
+      };
+
+      /* ===== Open modal for restore ===== */
+      window.bj_openRestoreModal = function (filename){
+        window.bj_filenameToRestore = filename;
+        window.bj_updateMode = null;
+        document.querySelector('#bj-restore-modal .bj-modal__content h2').textContent = 'Restore Options';
+        document.querySelector('#bj-restore-modal .bj-modal__content button').textContent = 'Restore Backup';
+        bjModal.style.display = 'block';
+        bjModal.setAttribute('aria-hidden', 'false');
+      };
+
+      /* ===== Update (shared) ===== */
+      function proceedWithUpdate(mode, keeps, ev){
+        const button = ev?.target; if (button) button.classList.add('loading');
+        const bodyData = { mode, keeps };
+        fetch('/update_application', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(bodyData) })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => {
+          if (button) button.classList.remove('loading');
+          if (data.status === 'success') { t('✅ ' + (data.message || 'Application updated')); bjModal.style.display='none'; bjModal.setAttribute('aria-hidden','true'); }
+          else { t('⚠️ ' + (data.message || 'Update failed')); }
+        })
+        .catch(error => { if (button) button.classList.remove('loading'); console.error('Error updating application:', error); t('⛔ Update failed — see console'); });
+      }
+
+      /* ===== Update application (toastConfirm instead of confirm) ===== */
+      window.bj_update_application = async function (mode){
+        const msg = mode === 'upgrade' ? 'Proceed with application upgrade?' : 'Fresh Start will delete all data. Continue?';
+        const ok = await toastConfirm(msg, { okText:'Proceed', cancelText:'Cancel' });
+        if (!ok) { t('ℹ️ Cancelled'); return; }
+
+        if (mode === 'upgrade') {
+          window.bj_updateMode = mode;
+          window.bj_filenameToRestore = null;
+          document.querySelector('#bj-restore-modal .bj-modal__content h2').textContent = 'Update Options';
+          document.querySelector('#bj-restore-modal .bj-modal__content button').textContent = 'Update Application';
+          document.getElementById('bj-restore-form').reset();
+          bjModal.style.display = 'block';
+          bjModal.setAttribute('aria-hidden', 'false');
+        } else {
+          bj_showLoading();
+          proceedWithUpdate(mode, []);
+          bj_hideLoading();
+        }
+      };
+
+      /* ===== Restore form submit (handles restore or upgrade) ===== */
+      document.getElementById('bj-restore-form').addEventListener('submit', function(e){
+        e.preventDefault();
+        const keeps = Array.from(this.querySelectorAll('input[name="keep"]:checked')).map(cb => cb.value);
+
+        if (window.bj_updateMode === 'upgrade') {
+          proceedWithUpdate('upgrade', keeps, e);
+        } else {
+          const filename = window.bj_filenameToRestore;
+          if (!filename) { t('⚠️ No backup file selected'); return; }
+
+          const mode = keeps.length > 0 ? 'selective_restore' : 'full_restore';
+          const bodyData = { filename, mode, keeps };
+
+          const button = this.querySelector('button');
+          button.classList.add('loading'); bj_showLoading();
+
+          fetch('/restore_backup', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(bodyData) })
+          .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+          .then(data => {
+            button.classList.remove('loading'); bj_hideLoading();
+            if (data.status === 'success') { t('✅ ' + (data.message || 'Backup restored')); loadBackups(); this.reset(); bjModal.style.display='none'; bjModal.setAttribute('aria-hidden','true'); }
+            else { t('⚠️ ' + (data.message || 'Restore failed')); }
+          })
+          .catch(error => { button.classList.remove('loading'); bj_hideLoading(); console.error('Error restoring backup:', error); t('⛔ Restore failed — see console'); });
+        }
+      });
+
+      /* ===== Delete backup (toastConfirm instead of confirm) ===== */
+      window.bj_deleteBackup = async function (filename, ev){
+        const ok = await toastConfirm('Delete this backup?', { okText:'Delete', cancelText:'Cancel' });
+        if (!ok) { t('ℹ️ Deletion cancelled'); return; }
+
+        const button = ev?.target; if (button) button.classList.add('loading');
+        bj_showLoading();
+
+        fetch('/delete_backup', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ filename }) })
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => {
+          if (button) button.classList.remove('loading'); bj_hideLoading();
+          if (data.status === 'success') { t('✅ ' + (data.message || 'Backup deleted')); loadBackups(); }
+          else { t('⚠️ ' + (data.message || 'Delete failed')); }
+        })
+        .catch(error => { if (button) button.classList.remove('loading'); bj_hideLoading(); console.error('Error deleting backup:', error); t('⛔ Delete failed — see console'); });
+      };
+
+      /* ===== Modal close handlers (scoped) ===== */
+      bjModalClose.addEventListener('click', function(){
+        bjModal.style.display = 'none'; bjModal.setAttribute('aria-hidden', 'true'); window.bj_updateMode = null; window.bj_filenameToRestore = null;
+      });
+      window.addEventListener('click', function(event){
+        if (event.target === bjModal) {
+          bjModal.style.display = 'none'; bjModal.setAttribute('aria-hidden','true'); window.bj_updateMode = null; window.bj_filenameToRestore = null;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,95 +1,649 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bjorn Cyberviking - Loot</title>
-    <link rel="icon" href="web/images/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="web/css/styles.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
-    <script src="web/scripts/loot.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Bjorn Cyberviking - Loot</title>
+  <link rel="icon" href="web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="web/css/global.css" />
+  <link rel="stylesheet" href="web/css/all.min.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <script src="web/js/global.js" defer></script>
 
+  <style>
+    /* ====== Respect global.css tokens (fallbacks only) ====== */
+    :root{
+      --_bg: var(--bg, #0b0c0f);
+      --_panel: var(--c-panel-2, rgba(16,22,22,.55));
+      --_border: var(--c-border, rgba(255,255,255,.08));
+      --_ink: var(--ink, #e6fff7);
+      --_muted: var(--muted, #8affc1cc);
+      --_acid: var(--acid, #00ff9a);
+      --_acid2: var(--acid-2, #18f0ff);
+      --_shadow: var(--shadow, 0 10px 26px rgba(0,0,0,.35));
+    }
+
+    *{ margin:0; padding:0; box-sizing:border-box; }
+
+    body{
+      background: var(--_bg);
+      color: var(--_ink);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+      min-height:100vh; overflow-x:hidden;
+    }
+
+    .main{ padding:16px; }
+
+    /* gentle ambient glow (kept subtle) */
+    body::before{
+      content:'';
+      position:fixed; inset:0;
+      background:
+        radial-gradient(60rem 60rem at 20% 50%, color-mix(in oklab, var(--_acid) 10%, transparent), transparent 60%),
+        radial-gradient(60rem 60rem at 80% 80%, color-mix(in oklab, var(--_acid2) 10%, transparent), transparent 60%);
+      pointer-events:none; z-index:1; animation:breathe 20s ease-in-out infinite;
+    }
+    @keyframes breathe{ 0%,100%{opacity:1;} 50%{opacity:.6;} }
+
+    .loot-container{
+      position:relative; z-index:2;
+      padding:16px; margin-top:5px;
+      min-height:calc(100vh - 60px);
+      display:flex; flex-direction:column; gap:16px;
+      animation:fadeInUp .6s ease-out;
+    }
+    @keyframes fadeInUp{ from{opacity:0; transform:translateY(30px);} to{opacity:1; transform:translateY(0);} }
+
+    /* ===== Stats bar ===== */
+    .stats-bar{
+      display:flex; gap:12px; flex-wrap:wrap;
+      padding:12px;
+      background: color-mix(in oklab, var(--_panel) 88%, transparent);
+      border:1px solid var(--_border);
+      border-radius:12px;
+      box-shadow: var(--_shadow);
+      backdrop-filter: blur(16px);
+    }
+    .stat-item{
+      display:flex; align-items:center; gap:8px;
+      padding:8px 16px;
+      background: color-mix(in oklab, var(--_panel) 65%, transparent);
+      border:1px solid var(--_border);
+      border-radius:10px;
+      transition: .2s;
+    }
+    .stat-item:hover{ background: color-mix(in oklab, var(--_panel) 78%, transparent); transform: translateY(-2px); }
+    .stat-icon{ font-size:1.2rem; opacity:.95; }
+    .stat-value{
+      font-size:1.05rem; font-weight:800;
+      background: linear-gradient(135deg, var(--_acid), var(--_acid2));
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .stat-label{ color: var(--_muted); font-size:.75rem; margin-left:4px; }
+
+    /* ===== Controls ===== */
+    .controls-bar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+
+    .search-container{ flex:1; min-width:200px; position:relative; }
+    .search-input{
+      width:100%; padding:12px 16px 12px 44px;
+      background: color-mix(in oklab, var(--_panel) 90%, transparent);
+      border:1px solid var(--_border);
+      border-radius:12px;
+      color: var(--_ink); font-size:.95rem;
+      backdrop-filter: blur(10px);
+      transition:.2s;
+    }
+    .search-input:focus{
+      outline:none;
+      border-color: color-mix(in oklab, var(--_acid2) 40%, var(--_border));
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--_acid2) 18%, transparent);
+      background: color-mix(in oklab, var(--_panel) 96%, transparent);
+    }
+    .search-icon{
+      position:absolute; left:16px; top:50%; transform:translateY(-50%);
+      color: var(--_muted); pointer-events:none;
+    }
+    .clear-search{
+      position:absolute; right:12px; top:50%; transform:translateY(-50%);
+      color: var(--_muted); cursor:pointer; font-size:1rem; display:none;
+    }
+    .search-input:not(:placeholder-shown) ~ .clear-search{ display:block; }
+
+    .view-controls{ display:flex; gap:8px; align-items:center; }
+    .view-btn, .sort-btn{
+      padding:10px;
+      background: color-mix(in oklab, var(--_panel) 90%, transparent);
+      border:1px solid var(--_border);
+      border-radius:10px;
+      color: var(--_muted); cursor:pointer;
+      transition:.2s; backdrop-filter: blur(10px); font-size:1.1rem;
+    }
+    .view-btn:hover, .sort-btn:hover{ background: color-mix(in oklab, var(--_panel) 96%, transparent); color: var(--_ink); transform: translateY(-2px); }
+    .view-btn.active{
+      background: linear-gradient(135deg, color-mix(in oklab, var(--_acid) 20%, transparent), color-mix(in oklab, var(--_acid2) 12%, transparent));
+      color: var(--_ink);
+      border-color: color-mix(in oklab, var(--_acid2) 35%, var(--_border));
+    }
+
+    .sort-dropdown{ position:relative; }
+    .sort-menu{
+      position:absolute; top:calc(100% + 8px); right:0;
+      background: color-mix(in oklab, var(--_panel) 98%, transparent);
+      border:1px solid var(--_border); border-radius:12px;
+      padding:8px; min-width:150px;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--_shadow);
+      opacity:0; pointer-events:none; transform: translateY(-10px);
+      transition:.2s; z-index:10;
+    }
+    .sort-dropdown.active .sort-menu{ opacity:1; pointer-events:auto; transform: translateY(0); }
+    .sort-option{
+      padding:10px 12px; border-radius:8px; cursor:pointer; transition:.2s; font-size:.9rem; color: var(--_ink);
+    }
+    .sort-option:hover{ background: rgba(255,255,255,.05); }
+    .sort-option.active{ color: var(--_ink); background: color-mix(in oklab, var(--_acid2) 14%, transparent); }
+
+    /* ===== Tabs ===== */
+    .tabs-container{
+      display:flex; gap:8px; padding:4px;
+      background: color-mix(in oklab, var(--_panel) 88%, transparent);
+      border-radius:12px; border:1px solid var(--_border);
+      backdrop-filter: blur(10px);
+      overflow-x:auto; scrollbar-width:none;
+    }
+    .tabs-container::-webkit-scrollbar{ display:none; }
+    .tab{
+      padding:10px 20px; border-radius:8px; cursor:pointer; transition:.2s;
+      white-space:nowrap; font-size:.9rem; font-weight:700; position:relative;
+      color: var(--_muted); border:1px solid transparent;
+    }
+    .tab:hover{ background: rgba(255,255,255,.05); color: var(--_ink); }
+    .tab.active{
+      background: linear-gradient(135deg, color-mix(in oklab, var(--_acid) 16%, transparent), color-mix(in oklab, var(--_acid2) 10%, transparent));
+      color: var(--_ink);
+      border-color: color-mix(in oklab, var(--_acid2) 28%, var(--_border));
+    }
+    .tab.active::after{
+      content:''; position:absolute; bottom:0; left:10%; right:10%; height:2px;
+      background: linear-gradient(90deg, var(--_acid), var(--_acid2)); border-radius:2px;
+    }
+    .tab-badge{
+      display:inline-block; padding:2px 6px; margin-left:6px;
+      background: rgba(255,255,255,.08); border:1px solid var(--_border);
+      border-radius:10px; font-size:.75rem; font-weight:700; color: var(--_ink);
+    }
+
+    /* ===== Explorer ===== */
+    .explorer{
+      background: color-mix(in oklab, var(--_panel) 88%, transparent);
+      border-radius:20px; border:1px solid var(--_border);
+      backdrop-filter: blur(20px);
+      box-shadow: var(--_shadow);
+      overflow:hidden; flex:1; display:flex; flex-direction:column;
+      animation:slideIn .6s ease-out;
+    }
+    @keyframes slideIn{ from{opacity:0; transform:translateX(-16px);} to{opacity:1; transform:translateX(0);} }
+
+    .explorer-content{ padding:20px; overflow-y:auto; flex:1; max-height:calc(100vh - 280px); }
+
+    .tree-view{ display:none; }
+    .tree-view.active{ display:block; }
+    .list-view{ display:none; }
+    .list-view.active{ display:grid; gap:8px; }
+
+    .tree-item{ margin-bottom:4px; animation:itemSlide .3s ease-out backwards; }
+    @keyframes itemSlide{ from{opacity:0; transform:translateX(-10px);} to{opacity:1; transform:translateX(0);} }
+
+    .tree-header{
+      display:flex; align-items:center; padding:12px; cursor:pointer;
+      border-radius:10px; transition:.2s; position:relative; overflow:hidden;
+    }
+    .tree-header::before{
+      content:''; position:absolute; inset:0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.05), transparent);
+      transform: translateX(-100%); transition: transform .6s;
+    }
+    .tree-header:hover::before{ transform: translateX(100%); }
+    .tree-header:hover{ background: rgba(255,255,255,.04); }
+
+    .tree-icon{
+      width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+      border-radius:8px; margin-right:12px; font-size:1.1rem; flex-shrink:0;
+      background: color-mix(in oklab, var(--_acid) 12%, transparent); color: var(--_ink);
+    }
+    .folder-icon{ background: color-mix(in oklab, var(--_acid) 10%, transparent); color: var(--_ink); }
+
+    .tree-name{ flex:1; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tree-chevron{ width:20px; height:20px; display:flex; align-items:center; justify-content:center; color: var(--_muted); transition: transform .3s cubic-bezier(.4,0,.2,1); margin-left:8px; }
+    .tree-item.expanded .tree-chevron{ transform: rotate(90deg); }
+
+    .tree-children{
+      max-height:0; overflow:hidden;
+      transition:max-height .3s cubic-bezier(.4,0,.2,1);
+      margin-left:20px; padding-left:20px;
+      border-left:1px solid var(--_border);
+    }
+    .tree-item.expanded .tree-children{ max-height:5000px; }
+
+    .file-item{
+      display:flex; align-items:center; padding:10px 12px; border-radius:10px;
+      cursor:pointer; transition:.2s; margin-bottom:4px;
+    }
+    .file-item:hover{ background: rgba(255,255,255,.04); transform: translateX(4px); }
+    .file-item:active{ transform: translateX(2px) scale(.98); }
+
+    .file-icon{
+      width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+      border-radius:6px; margin-right:12px; font-size:.9rem; flex-shrink:0; color: var(--_ink);
+      background: color-mix(in oklab, var(--_panel) 75%, transparent);
+    }
+    .file-icon.ssh{ background: color-mix(in oklab, var(--_acid) 12%, transparent); }
+    .file-icon.sql{ background: color-mix(in oklab, var(--_acid2) 12%, transparent); }
+    .file-icon.smb{ background: color-mix(in oklab, var(--_acid2) 16%, transparent); }
+    .file-icon.other{ background: color-mix(in oklab, var(--_panel) 75%, transparent); }
+
+    .file-name{ flex:1; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color: var(--_ink); }
+    .file-type{
+      padding:3px 8px; border-radius:6px; font-size:.7rem; font-weight:800;
+      text-transform:uppercase; letter-spacing:.05em; margin-left:8px;
+      border:1px solid var(--_border); color: var(--_ink);
+      background: color-mix(in oklab, var(--_panel) 80%, transparent);
+    }
+    .file-type.ssh{ background: color-mix(in oklab, var(--_acid) 12%, transparent); }
+    .file-type.sql{ background: color-mix(in oklab, var(--_acid2) 12%, transparent); }
+    .file-type.smb{ background: color-mix(in oklab, var(--_acid2) 16%, transparent); }
+
+    .no-results{ text-align:center; color: var(--_muted); padding:40px; font-size:.95rem; }
+    .no-results-icon{ font-size:3rem; margin-bottom:16px; opacity:.5; }
+
+    .loading{ display:flex; justify-content:center; align-items:center; height:200px; }
+    .loading-spinner{
+      width:40px; height:40px; border:3px solid var(--_border);
+      border-top-color: var(--_acid2); border-radius:50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
+
+    /* ===== Responsive ===== */
+    @media (max-width:768px){
+      .loot-container{ padding:12px; gap:12px; }
+      .controls-bar{ flex-direction:column; align-items:stretch; }
+      .search-container{ width:100%; }
+      .view-controls{ justify-content:center; }
+      .tabs-container{ padding:2px; }
+      .tab{ padding:8px 14px; font-size:.85rem; }
+      .explorer-content{ padding:12px; max-height:calc(100vh - 320px); }
+      .tree-children{ margin-left:12px; padding-left:12px; }
+      .stat-item{ padding:6px 10px; }
+      .stat-value{ font-size:.95rem; }
+    }
+    @media (hover:none){ .tree-header:active{ background: rgba(255,255,255,.06); } }
+  </style>
 </head>
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const fileList = document.getElementById("file-list");
 
-        let currentPath = "/"; // Start at root
-
-        function fetchFiles(path) {
-            fetch(`/list_files?path=${encodeURIComponent(path)}`)
-                .then(response => response.json())
-                .then(data => {
-                    displayFiles(data, path);
-                })
-                .catch(error => {
-                    console.error('Error fetching files:', error);
-                });
-        }
-
-        function displayFiles(files, path) {
-            currentPath = path;
-            fileList.innerHTML = "";
-
-            files.forEach(file => {
-                const div = document.createElement("div");
-                div.textContent = file.name;
-                div.classList.add(file.is_directory ? "folder" : "file");
-
-                div.addEventListener("click", () => {
-                    if (file.is_directory) {
-                        fetchFiles(`${path}/${file.name}`);
-                    } else {
-                        window.open(`${path}/${file.name}`, '_blank');
-                    }
-                });
-
-                fileList.appendChild(div);
-            });
-        }
-
-        fetchFiles(currentPath);
-    });
-</script>
 <body>
-    <div class="toolbar" id="mainToolbar">
-        <button type="button" onclick="window.location.href='/index.html'" title="Playground">
-            <img src="/web/images/console_icon.png" alt="Bjorn" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/config.html'" title="Config">
-            <img src="/web/images/config_icon.png" alt="Icon_config" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/network.html'" title="Network">
-            <img src="/web/images/network_icon.png" alt="Icon_network" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/netkb.html'" title="NetKB">
-            <img src="/web/images/netkb_icon.png" alt="Icon_netkb" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/credentials.html'" title="Credentials">
-            <img src="/web/images/cred_icon.png" alt="Icon_cred" style="height: 50px;">
-        </button>
-        <button type="button" onclick="window.location.href='/loot.html'" title="Loot">
-            <img src="/web/images/loot_icon.png" alt="Icon_loot" style="height: 50px;">
-        </button>
-    </div>
-    <div class="console-toolbar">
-        <button type="button" class="toolbar-button" onclick="adjustLootFontSize(-1)" title="-">
-            <img src="/web/images/less.png" alt="Icon_less" style="height: 50px;">
-        </button>
-
-        <button id="toggle-toolbar" type="button" class="toolbar-button" onclick="toggleLootToolbar()" data-open="false">
-            <img id="toggle-icon" src="/web/images/hide.png" alt="Toggle Toolbar" style="height: 50px;">
-        </button>
-
-        <button type="button" class="toolbar-button" onclick="adjustLootFontSize(1)" title="+">
-            <img src="/web/images/plus.png" alt="Icon_plus" style="height: 50px;">
-        </button>
-    </div>
+  <div class="main" id="main">
     <div class="loot-container">
-        <div id="file-list">
-            <!-- The file list will be inserted here by JavaScript -->
+      <!-- Stats bar -->
+      <div class="stats-bar">
+        <div class="stat-item"><span class="stat-icon">👥</span><span class="stat-value" id="stat-victims">0</span><span class="stat-label">victims</span></div>
+        <div class="stat-item"><span class="stat-icon">📄</span><span class="stat-value" id="stat-files">0</span><span class="stat-label">files</span></div>
+        <div class="stat-item"><span class="stat-icon">📁</span><span class="stat-value" id="stat-folders">0</span><span class="stat-label">folders</span></div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-bar">
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="searchInput" placeholder="Search in all categories..." />
+          <span class="clear-search" id="clearSearch">❌</span>
         </div>
+        <div class="view-controls">
+          <button class="view-btn active" id="treeViewBtn" title="Tree View">🌳</button>
+          <button class="view-btn" id="listViewBtn" title="List View">📋</button>
+          <div class="sort-dropdown" id="sortDropdown">
+            <button class="sort-btn" id="sortBtn">⬇️</button>
+            <div class="sort-menu">
+              <div class="sort-option active" data-sort="name">Name</div>
+              <div class="sort-option" data-sort="type">Type</div>
+              <div class="sort-option" data-sort="date">Date</div>
+              <div class="sort-option" data-sort="asc">Asc</div>
+              <div class="sort-option" data-sort="desc">Desc</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabs-container" id="tabsContainer"></div>
+
+      <div class="explorer">
+        <div class="explorer-content" id="explorerContent">
+          <div class="loading"><div class="loading-spinner"></div></div>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- ===== JS: unchanged logic ===== -->
+  <script>
+    let fileData = [];
+    let allFiles = [];
+    let currentView = 'tree';
+    let currentCategory = 'all';
+    let currentSort = 'name';
+    let sortDirection = 'asc';
+    let searchTerm = '';
+    let globalStats = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFiles();
+      setupEventListeners();
+    });
+
+    function setupEventListeners(){
+      const searchInput = document.getElementById('searchInput');
+      const clearBtn = document.getElementById('clearSearch');
+      let searchTimeout;
+
+      searchInput.addEventListener('input', e => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchTerm = e.target.value.toLowerCase();
+          renderContent(true);
+        }, 300);
+      });
+
+      clearBtn.addEventListener("click", () => {
+        searchInput.value = "";
+        searchTerm = "";
+        renderContent();
+      });
+
+      document.getElementById('treeViewBtn').addEventListener('click', () => setView('tree'));
+      document.getElementById('listViewBtn').addEventListener('click', () => setView('list'));
+
+      const sortDropdown = document.getElementById('sortDropdown');
+      const sortBtn = document.getElementById('sortBtn');
+      sortBtn.addEventListener('click', () => { sortDropdown.classList.toggle('active'); });
+
+      document.querySelectorAll('.sort-option').forEach(option => {
+        option.addEventListener('click', () => {
+          document.querySelectorAll('.sort-option').forEach(opt => opt.classList.remove('active'));
+          option.classList.add('active');
+          if (option.dataset.sort === 'asc' || option.dataset.sort === 'desc') {
+            sortDirection = option.dataset.sort;
+          } else {
+            currentSort = option.dataset.sort;
+          }
+          sortDropdown.classList.remove('active');
+          renderContent();
+        });
+      });
+
+      document.addEventListener('click', e => {
+        const sortDropdownEl = document.getElementById('sortDropdown');
+        if (!sortDropdownEl.contains(e.target)) sortDropdownEl.classList.remove('active');
+      });
+    }
+
+    function setView(view){
+      currentView = view;
+      document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(view === 'tree' ? 'treeViewBtn' : 'listViewBtn').classList.add('active');
+      renderContent();
+    }
+
+    function loadFiles(){
+      fetch('/loot_directories')
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'success') {
+            fileData = data.data;
+            processFiles();
+            updateStats();
+            renderContent();
+          }
+        })
+        .catch(err => {
+          console.error('Error loading files:', err);
+          document.getElementById('explorerContent').innerHTML =
+            '<div class="no-results"><div class="no-results-icon">⚠️</div>Failed to load files</div>';
+        });
+    }
+
+    function renderTabs(categories){
+      const tabs = document.getElementById('tabsContainer');
+      tabs.innerHTML = '';
+      tabs.innerHTML += `<div class="tab active" data-category="all">All <span class="tab-badge" id="badge-all">0</span></div>`;
+      categories.forEach(cat => {
+        tabs.innerHTML += `<div class="tab" data-category="${cat}">${cat.toUpperCase()}<span class="tab-badge" id="badge-${cat}">0</span></div>`;
+      });
+      tabs.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentCategory = tab.dataset.category;
+          renderContent();
+        });
+      });
+    }
+
+    function processFiles(){
+      allFiles = [];
+      let stats = {};
+      function extractFiles(items, path = ''){
+        items.forEach(item => {
+          if (item.type === 'directory' && item.children) {
+            extractFiles(item.children, path + item.name + '/');
+          } else {
+            const category = getFileCategory(item.name, path);
+            allFiles.push({ ...item, category, fullPath: path + item.name });
+            stats[category] = (stats[category] || 0) + 1;
+          }
+        });
+      }
+      extractFiles(fileData);
+      globalStats = stats;
+      renderTabs(Object.keys(stats));
+      document.getElementById('badge-all').textContent = allFiles.length;
+      for (const cat in stats) {
+        const badge = document.getElementById(`badge-${cat}`);
+        if (badge) badge.textContent = stats[cat];
+      }
+    }
+
+    function getFileCategory(filename, path){
+      const lowerName = filename.toLowerCase();
+      const lowerPath = path.toLowerCase();
+      if (lowerPath.includes('ssh') || lowerName.includes('ssh') || lowerName.includes('key')) return 'ssh';
+      else if (lowerPath.includes('sql') || lowerName.includes('sql') || lowerName.includes('database')) return 'sql';
+      else if (lowerPath.includes('smb') || lowerName.includes('smb') || lowerName.includes('share')) return 'smb';
+      return 'other';
+    }
+    function getDirCategory(path){
+      const lowerPath = path.toLowerCase();
+      if (lowerPath.includes('ssh')) return 'ssh';
+      if (lowerPath.includes('sql')) return 'sql';
+      if (lowerPath.includes('smb')) return 'smb';
+      return 'other';
+    }
+
+    function updateStats(){
+      let victims = new Set(); let totalFiles = 0; let totalFolders = 0;
+      function scan(items){
+        items.forEach(item => {
+          if (item.type === 'directory') {
+            totalFolders++;
+            if (/^[0-9a-f:]{17}_\d+\.\d+\.\d+\.\d+$/i.test(item.name)) { victims.add(item.name); }
+            if (item.children) scan(item.children);
+          } else { totalFiles++; }
+        });
+      }
+      scan(fileData);
+      document.getElementById('stat-victims').textContent = victims.size;
+      document.getElementById('stat-files').textContent   = totalFiles;
+      document.getElementById('stat-folders').textContent = totalFolders;
+    }
+
+    /* ========== Search & badges (logic unchanged) ========== */
+    function fileMatchesSearch(f){
+      if (!searchTerm) return true;
+      const n = f.name?.toLowerCase() || "";
+      const p = f.fullPath?.toLowerCase() || "";
+      return n.includes(searchTerm) || p.includes(searchTerm);
+    }
+    function computeSearchFilteredFiles(){
+      return allFiles.filter(fileMatchesSearch);
+    }
+    function updateBadgesFromFiltered(){
+      const filtered = computeSearchFilteredFiles();
+      const allBadge = document.getElementById("badge-all");
+      if (allBadge) allBadge.textContent = filtered.length;
+
+      const byCat = filtered.reduce((acc, f) => {
+        acc[f.category] = (acc[f.category] || 0) + 1;
+        return acc;
+      }, {});
+      document.querySelectorAll(".tab").forEach(tab => {
+        const cat = tab.dataset.category;
+        if (cat !== "all") {
+          const badge = document.getElementById(`badge-${cat}`);
+          if (badge) badge.textContent = byCat[cat] || 0;
+        }
+      });
+    }
+
+    function renderContent(autoExpand = false){
+      const container = document.getElementById('explorerContent');
+      if (currentView === 'tree') {
+        renderTreeView(container);
+      } else {
+        renderListView(container);
+      }
+    }
+
+    function renderTreeView(container){
+      const filteredData = filterDataForTree();
+      updateBadgesFromFiltered();
+
+      if (filteredData.length === 0) {
+        container.innerHTML = '<div class="no-results"><div class="no-results-icon">🔍</div>No results</div>';
+        return;
+      }
+
+      container.innerHTML = `<div class="tree-view active">${renderTreeItems(filteredData, 0)}</div>`;
+      container.querySelectorAll('.tree-header').forEach(header => {
+        header.addEventListener('click', e => {
+          e.stopPropagation();
+          const treeItem = header.closest('.tree-item');
+          if (treeItem) { treeItem.classList.toggle('expanded'); }
+        });
+      });
+      container.querySelectorAll('.file-item').forEach(fileItem => {
+        fileItem.addEventListener('click', e => {
+          e.stopPropagation();
+          const path = fileItem.dataset.path;
+          if (path) downloadFile(path);
+        });
+      });
+    }
+
+    function filterDataForTree(){
+      function filterItems(items, path = '', isRoot = false){
+        return items.map(item => {
+          if (item.type === 'directory') {
+            const dirPath = path + item.name + '/';
+            const dirCategory = getDirCategory(dirPath);
+            const filteredChildren = item.children ? filterItems(item.children, dirPath, false) : [];
+            const nameMatch = item.name.toLowerCase().includes(searchTerm);
+
+            if (isRoot) {
+              if (currentCategory !== 'all' && dirCategory !== currentCategory) return null;
+              if (!searchTerm) return { ...item, children: filteredChildren };
+              if (filteredChildren.length > 0) return { ...item, children: filteredChildren };
+              return null;
+            }
+
+            if (nameMatch || filteredChildren.length > 0) return { ...item, children: filteredChildren };
+            return null;
+          } else {
+            const category = getFileCategory(item.name, path);
+            const temp = { ...item, category, fullPath: path + item.name };
+            const matchesSearch = fileMatchesSearch(temp);
+            const matchesCategory = (currentCategory === 'all' || category === currentCategory);
+            return (matchesSearch && matchesCategory) ? temp : null;
+          }
+        }).filter(Boolean);
+      }
+      return filterItems(fileData, '', true);
+    }
+
+    function renderTreeItems(items, level, path = ''){
+      return items.map((item, index) => {
+        if (item.type === 'directory') {
+          const hasChildren = item.children && item.children.length > 0;
+          const expandedClass = searchTerm ? " expanded" : "";
+          return `<div class="tree-item${expandedClass}" style="animation-delay:${index*0.05}s">
+            <div class="tree-header">
+              <div class="tree-icon folder-icon">📁</div>
+              <div class="tree-name">${item.name}</div>
+              ${hasChildren ? '<div class="tree-chevron">▶</div>' : ''}
+            </div>
+            ${hasChildren ? `<div class="tree-children">${renderTreeItems(item.children, level + 1, path + item.name + '/')}</div>` : ''}
+          </div>`;
+        } else {
+          const category = getFileCategory(item.name, path);
+          return renderFileItem({ ...item, category, fullPath: path + item.name }, category, index, false);
+        }
+      }).join('');
+    }
+
+    function renderListView(container){
+      let filtered = allFiles.filter(f => fileMatchesSearch(f) && (currentCategory === 'all' || f.category === currentCategory));
+      updateBadgesFromFiltered();
+
+      filtered.sort((a, b) => {
+        let res = 0;
+        switch (currentSort) {
+          case 'type': res = a.category.localeCompare(b.category) || a.name.localeCompare(b.name); break;
+          case 'path': res = a.fullPath.localeCompare(b.fullPath); break;
+          case 'date': res = a.name.localeCompare(b.name); break;
+          case 'name':
+          default:     res = a.name.localeCompare(b.name);
+        }
+        return sortDirection === 'desc' ? -res : res;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="no-results"><div class="no-results-icon">🔍</div>No files</div>';
+        return;
+      }
+
+      container.innerHTML = `<div class="list-view active">${filtered.map((f,i)=>renderFileItem(f, f.category, i, true)).join('')}</div>`;
+      container.querySelectorAll('.file-item').forEach(fi => {
+        fi.addEventListener('click', () => {
+          const path = fi.dataset.path;
+          if (path) downloadFile(path);
+        });
+      });
+    }
+
+    function renderFileItem(file, category, index = 0, showPath = false){
+      const icons = { ssh: '🔐', sql: '🗄️', smb: '🌐', other: '📄' };
+      return `<div class="file-item" data-path="${file.path}" style="animation-delay:${index*0.02}s">
+        <div class="file-icon ${category}">${icons[category]}</div>
+        <div class="file-name">${file.name}${showPath ? ` <span style="color:var(--_muted);font-size:0.75rem">— ${file.fullPath}</span>` : ''}</div>
+        <span class="file-type ${category}">${category}</span>
+      </div>`;
+    }
+
+    function downloadFile(path){
+      window.location.href = `/loot_download?path=${encodeURIComponent(path)}`;
+    }
+  </script>
 </body>
 </html>

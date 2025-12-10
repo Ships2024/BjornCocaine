@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Bjorn Cyberviking – WebEnum</title>
+  <link rel="icon" href="/web/images/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/web/css/global.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/web/images/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#333" />
+
+  <script src="/web/js/global.js" defer></script>
+
+  <!-- Ponts légers pour mapper sur global.css sans changer la logique -->
+  <style>
+    /* Layout de page */
+    body{background:var(--grad-bg-1), var(--grad-bg-2), var(--bg); color:var(--ink); font:var(--font-mono)}
+    .container{max-width:1400px;margin:0 auto;padding:16px}
+
+    /* Header */
+    .header.card{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .header h1{margin:0;color:var(--acid)}
+
+    /* Cartes & blocs */
+    .controls.card{display:grid;gap:10px}
+    .controls-row{display:flex;flex-wrap:wrap;gap:var(--gap-3);align-items:center}
+
+    /* Champs */
+    .search-box{flex:1;min-width:230px;position:relative}
+    .search-box .input{width:100%;padding-right:36px}
+    .search-icon{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--acid)}
+
+    /* Stats */
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:10px 0 12px}
+    .stat-card{background:var(--grad-card);border:1px solid var(--c-border);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+    .stat-value{font-weight:700;color:var(--acid)}
+    .stat-label{color:var(--muted)}
+
+    /* Legend */
+    .status-legend.card{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+    /* Tableau */
+    .results-container.card{overflow:hidden}
+    .results-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--c-border);padding-bottom:8px;margin-bottom:8px}
+    .results-count{color:var(--accent-2);font-weight:600}
+    .table-container{overflow:auto;max-height:calc(100vh - 520px);min-height:400px}
+    table{width:100%;border-collapse:collapse}
+    th{position:sticky;top:0;z-index:1;background:var(--c-panel-2);color:var(--acid);text-align:left;padding:10px 12px;border-bottom:1px solid var(--c-border);user-select:none;cursor:pointer;font-weight:700}
+    td{padding:8px 12px;border-bottom:1px dashed var(--c-border)}
+    tr{transition:background .15s ease}
+    tr:hover{background:color-mix(in oklab, var(--acid) 8%, transparent);cursor:pointer}
+    th.sortable::after{content:' ⇅';opacity:.5}
+    th.sort-asc::after{content:' ↑';color:var(--acid);opacity:1}
+    th.sort-desc::after{content:' ↓';color:var(--acid);opacity:1}
+    .no-results{text-align:center;padding:40px;color:var(--muted);font-style:italic}
+    .loading{text-align:center;padding:40px;color:var(--acid)}
+
+    /* Badges & liens */
+    .host-badge{background:var(--c-chip-bg);color:var(--accent-2);padding:3px 8px;border-radius:8px;border:1px solid var(--c-border);font-weight:600;font-size:.9rem}
+    .port-badge{background:var(--c-chip-bg);color:var(--acid);padding:3px 8px;border-radius:8px;border:1px solid var(--c-border);font-weight:700;font-size:.9rem}
+    .url-link{color:var(--acid-2);text-decoration:none;font-size:1.1rem;transition:.2s}
+    .url-link:hover{color:var(--acid);transform:scale(1.2);display:inline-block}
+
+    /* Status chips */
+    .status{
+      display:inline-block;
+      min-width:60px;
+      text-align:center;
+      padding:5px 10px;
+      border-radius:8px;
+      font-weight:700;
+      font-size:.85rem;
+      border:1px solid var(--c-border);
+      transition:.2s;
+      cursor:default;
+    }
+    .status:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+    .status-2xx{background:var(--ok);color:var(--ink-invert)}
+    .status-3xx{background:var(--warning);color:var(--ink-invert)}
+    .status-4xx{background:var(--danger);color:var(--ink)}
+    .status-5xx{background:color-mix(in oklab, var(--danger) 65%, var(--lvl-crit-bg) 35%);color:var(--ink)}
+    .status-unknown{background:var(--muted-off);color:var(--ink)}
+
+    /* Pagination */
+    .pagination{display:flex;justify-content:center;align-items:center;gap:8px;padding:10px;background:var(--c-panel);border-top:1px dashed var(--c-border)}
+    .page-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:var(--control-r);background:var(--c-btn);border:1px solid var(--c-border-strong);color:var(--ink);cursor:pointer;box-shadow:var(--shadow);transition:.18s}
+    .page-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-hover)}
+    .page-btn.active{outline:2px solid color-mix(in oklab, var(--acid) 55%, transparent)}
+    .page-btn:disabled{opacity:.5;cursor:not-allowed}
+
+    /* Boutons */
+    .btn-primary{background:linear-gradient(180deg, color-mix(in oklab, var(--acid) 28%, var(--c-btn)), var(--c-btn));border-color:color-mix(in oklab, var(--acid) 45%, var(--c-border));color:var(--ink)}
+
+    /* Modal WebEnum */
+    .webenum-modal-backdrop{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.85);
+      backdrop-filter:blur(4px);
+      z-index:9999;
+      align-items:center;
+      justify-content:center;
+      animation:fadeIn 0.2s ease;
+    }
+    .webenum-modal-backdrop.show{display:flex}
+    .webenum-modal-content{
+      background:var(--c-panel);
+      border:1px solid var(--c-border-strong);
+      border-radius:16px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.5);
+      width:min(720px,96vw);
+      max-height:86vh;
+      overflow:auto;
+      padding:24px;
+      position:relative;
+      animation:slideUp 0.3s ease;
+    }
+    .webenum-modal-content h2{margin:0 0 16px;color:var(--acid);font-size:1.5rem}
+    .webenum-close{
+      position:absolute;
+      top:16px;
+      right:16px;
+      color:var(--muted);
+      font-size:28px;
+      font-weight:700;
+      cursor:pointer;
+      line-height:1;
+      transition:.2s;
+      background:var(--c-btn);
+      border:1px solid var(--c-border);
+      border-radius:8px;
+      width:32px;
+      height:32px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .webenum-close:hover{color:var(--acid);transform:rotate(90deg)}
+    
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+    /* Responsive */
+    @media (max-width:768px){
+      .container{padding:10px}
+      .results-header{flex-direction:column;gap:8px;text-align:center}
+      th,td{padding:8px 6px}
+    }
+    @media (max-width:480px){
+      th,td{padding:6px 4px;font-size:.85rem}
+      .status{font-size:.75rem}
+    }
+  </style>
+</head>
+<body>
+  <main class="main" id="main">
+    <div class="container">
+      <div class="header card">
+        <h1 class="card-title">🔍 WebEnum</h1>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="controls card">
+        <div class="controls-row">
+          <div class="search-box">
+            <input id="searchInput" class="input" type="text" placeholder="Search directories, hosts, IPs, status codes..."/>
+            <span class="search-icon">🔍</span>
+          </div>
+          <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
+        </div>
+        <div class="controls-row">
+          <div class="filter-group chips">
+            <select id="hostFilter" class="select"><option value="">All Hosts</option></select>
+            <select id="statusFilter" class="select" title="Filter by status family">
+              <option value="">All Status (families)</option>
+              <option value="2xx">2xx Success</option>
+              <option value="3xx">3xx Redirect</option>
+              <option value="4xx">4xx Client Error</option>
+              <option value="5xx">5xx Server Error</option>
+            </select>
+            <select id="portFilter" class="select"><option value="">All Ports</option></select>
+            <input type="date" id="dateFilter" class="input" title="Filter by scan date"/>
+          </div>
+          <div class="export-controls chips">
+            <button class="btn" onclick="exportResults('json')">Export JSON</button>
+            <button class="btn" onclick="exportResults('csv')">Export CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend dynamique (remplie par JS) -->
+      <div class="status-legend card" id="statusLegend"></div>
+
+      <div class="results-container card">
+        <div class="results-header">
+          <div class="results-count" id="resultsCount">Loading results...</div>
+          <div>
+            <label for="itemsPerPage">Items per page:</label>
+            <select id="itemsPerPage" class="select" onchange="changeItemsPerPage()">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="250">250</option>
+              <option value="500">500</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable" onclick="sortTable('host')">Host</th>
+                <th class="sortable" onclick="sortTable('ip')">IP</th>
+                <th class="sortable" onclick="sortTable('port')">Port</th>
+                <th class="sortable" onclick="sortTable('directory')">Directory</th>
+                <th class="sortable" onclick="sortTable('status')">Status</th>
+                <th class="sortable" onclick="sortTable('size')">Size</th>
+                <th class="sortable" onclick="sortTable('scan_date')">Scan Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="resultsTable"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+
+    <!-- Modal WebEnum -->
+    <div id="webenumDetailModal" class="webenum-modal-backdrop">
+      <div class="webenum-modal-content">
+        <span class="webenum-close" onclick="closeWebenumModal()">&times;</span>
+        <div id="webenumModalContent"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- JS avec correctif d'IDs du modal -->
+  <script>
+    // =================== Globals ===================
+    let allData = [];
+    let filteredData = [];
+    let currentPage = 1;
+    let itemsPerPage = 50;
+    let sortField = 'scan_date';
+    let sortDirection = 'desc';
+    let serverTotal = 0;
+    let fetchedLimit = 0;
+    let exactStatusFilter = null;   // filtre par code exact (chips)
+
+    // API
+    const API_BASE_URL = '/api/webenum';
+    const RESULTS_ENDPOINT = `${API_BASE_URL}/results`;
+    const PAGE_LIMIT = 500;
+    const MAX_PAGES = 200;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      setupEventListeners();
+    });
+
+    function setupEventListeners(){
+      let searchTimeout;
+      document.getElementById('searchInput').addEventListener('input', ()=>{
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(filterData, 300);
+      });
+      ['hostFilter','statusFilter','portFilter','dateFilter'].forEach(id=>{
+        document.getElementById(id).addEventListener('change', ()=>{
+          if (id === 'statusFilter') exactStatusFilter = null; // si on change la famille, on annule l'exact
+          filterData();
+        });
+      });
+      document.addEventListener('keydown', e=>{
+        if (e.ctrlKey || e.metaKey){
+          if (e.key==='f'){ e.preventDefault(); document.getElementById('searchInput').focus(); }
+          if (e.key==='r'){ e.preventDefault(); refreshData(); }
+        }
+      });
+    }
+
+    // =================== Fetch helpers ===================
+    async function fetchPage(page=1,limit=PAGE_LIMIT){
+      const url = `${RESULTS_ENDPOINT}?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const json = await res.json();
+      return {
+        results: Array.isArray(json.results) ? json.results : (Array.isArray(json) ? json : []),
+        total: Number.isFinite(json.total) ? json.total : (Array.isArray(json.results) ? json.results.length : 0),
+        page: json.page ?? page, limit: json.limit ?? limit
+      };
+    }
+    async function fetchAll(limitPerPage=PAGE_LIMIT){
+      let page=1, total=Infinity; const acc=[];
+      while((page-1)*limitPerPage<total && page<=MAX_PAGES){
+        const {results,total:t}=await fetchPage(page,limitPerPage);
+        if(!results || results.length===0) break;
+        acc.push(...results);
+        total = Number.isFinite(t) && t>0 ? t : acc.length;
+        page++;
+      }
+      return {results:acc,total};
+    }
+
+    // =================== Load ===================
+    async function loadData(){
+      showLoading();
+      try{
+        const {results,total}=await fetchAll(PAGE_LIMIT);
+        allData = results;
+        serverTotal = total || results.length;
+        fetchedLimit = allData.length;
+        populateFilters();
+        renderStatusLegend();
+        filterData();
+        updateStats();
+      }catch(e){
+        console.error(e);
+        showError('Failed to load data. Using sample data for demo.');
+        allData = generateSampleData();
+        serverTotal = fetchedLimit = allData.length;
+        populateFilters();
+        renderStatusLegend();
+        filterData();
+        updateStats();
+      }
+    }
+
+    // =================== Sample ===================
+    function generateSampleData(){
+      const hosts=['example.com','test.org','demo.net','site.io'];
+      const ips=['192.168.1.10','10.0.0.5','172.16.1.20','203.0.113.45'];
+      const ports=[80,443,8080,8443,3000];
+      const dirs=['/admin','/api','/backup','/config','/test','/dev','/upload','/files','/images','/scripts'];
+      const statuses=[200,201,204,301,302,401,403,404,500,502,503];
+      const out=[];
+      for(let i=0;i<150;i++){
+        out.push({
+          id:i+1,
+          host:hosts[Math.floor(Math.random()*hosts.length)],
+          ip:ips[Math.floor(Math.random()*ips.length)],
+          mac:generateRandomMAC(),
+          port:ports[Math.floor(Math.random()*ports.length)],
+          directory:dirs[Math.floor(Math.random()*dirs.length)],
+          status:statuses[Math.floor(Math.random()*statuses.length)],
+          size:Math.floor(Math.random()*50000)+100,
+          scan_date:new Date(Date.now()-Math.random()*30*24*60*60*1000).toISOString(),
+          response_time:Math.floor(Math.random()*2000)+50,
+          content_type:['text/html','application/json','text/plain','image/jpeg'][Math.floor(Math.random()*4)]
+        });
+      }
+      return out;
+    }
+
+    // =================== Utils ===================
+    function getStatusText(code){
+      const map={
+        200:"OK — Request succeeded",
+        201:"Created — Resource created",
+        204:"No Content — Success without a body",
+        301:"Moved Permanently — Redirect",
+        302:"Found — Temporary redirect",
+        303:"See Other — Redirect to another endpoint",
+        307:"Temporary Redirect — Same method",
+        308:"Permanent Redirect — Same method",
+        401:"Unauthorized — Auth required",
+        403:"Forbidden — Access denied",
+        404:"Not Found — No such resource",
+        405:"Method Not Allowed — Wrong HTTP verb",
+        500:"Internal Server Error — Server issue",
+        502:"Bad Gateway — Upstream issue",
+        503:"Service Unavailable — Overloaded or down",
+        504:"Gateway Timeout — Upstream didn't answer"
+      };
+      if(map[code]) return map[code];
+      if(code>=200 && code<300) return "Success — 2xx";
+      if(code>=300 && code<400) return "Redirect — 3xx";
+      if(code>=400 && code<500) return "Client Error — 4xx";
+      if(code>=500) return "Server Error — 5xx";
+      return "Unknown status";
+    }
+    function generateRandomMAC(){return Array.from({length:6},()=>Math.floor(Math.random()*256).toString(16).padStart(2,'0')).join(':').toUpperCase()}
+    function sanitizePath(p){
+      const s=String(p||'/'); const ANSI=/\x1B\[[0-?]*[ -/]*[@-~]/g; const CTL=/[\x00-\x1F\x7F]/g;
+      return s.replace(ANSI,'').replace(CTL,'');
+    }
+    function getStatusClass(status){
+      if(status>=200 && status<300) return 'status-2xx';
+      if(status>=300 && status<400) return 'status-3xx';
+      if(status>=400 && status<500) return 'status-4xx';
+      if(status>=500) return 'status-5xx';
+      return 'status-unknown';
+    }
+
+    // =================== Filters & legend ===================
+    function populateFilters(){
+      const hosts=[...new Set(allData.map(i=>i.hostname||i.host).filter(Boolean))].sort();
+      const ports=[...new Set(allData.map(i=>i.port).filter(v=>v!==undefined))].sort((a,b)=>a-b);
+      populateSelectOptions('hostFilter',hosts);
+      populateSelectOptions('portFilter',ports);
+    }
+    function populateSelectOptions(selectId,options){
+      const select=document.getElementById(selectId);
+      const current=select.value;
+      select.innerHTML=select.children[0]?.outerHTML || '<option value="">All</option>';
+      options.forEach(opt=>{
+        const el=document.createElement('option'); el.value=opt; el.textContent=opt; select.appendChild(el);
+      });
+      select.value=current;
+    }
+
+    function renderStatusLegend(){
+      const legend = document.getElementById('statusLegend');
+      const codes = [...new Set(allData.map(r=>r.status).filter(x=>x!=null))].sort((a,b)=>a-b);
+      const frag = document.createDocumentFragment();
+
+      // Chip ALL
+      const chipAll = makeStatusChip('All', null, 'Show all status codes');
+      frag.appendChild(chipAll);
+
+      // Chips par code existant
+      codes.forEach(code=>{
+        const chip = makeStatusChip(String(code), code, `${code} — ${getStatusText(code)}`);
+        frag.appendChild(chip);
+      });
+
+      legend.innerHTML='';
+      legend.appendChild(frag);
+      highlightActiveChip();
+    }
+
+    function makeStatusChip(label, code, title){
+      const chip=document.createElement('button');
+      chip.className='chip';
+      chip.type='button';
+      chip.title=title || '';
+      chip.setAttribute('data-code', code==null ? 'ALL' : String(code));
+      chip.addEventListener('click', (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        setExactStatusFilter(code);
+      });
+      const badge=document.createElement('span');
+      const cls = code==null ? 'status status-unknown' : `status ${getStatusClass(code)} status-${code}`;
+      badge.className=cls;
+      badge.textContent = code==null ? 'All' : String(code);
+      chip.appendChild(badge);
+      return chip;
+    }
+
+    function setExactStatusFilter(code){
+      exactStatusFilter = (code==null) ? null : Number(code);
+      document.getElementById('statusFilter').value = '';
+      filterData();
+      highlightActiveChip();
+    }
+
+    function highlightActiveChip(){
+      const chips = document.querySelectorAll('#statusLegend .chip');
+      chips.forEach(c=>c.classList.remove('active'));
+      const target = document.querySelector(`#statusLegend .chip[data-code="${exactStatusFilter==null?'ALL':String(exactStatusFilter)}"]`);
+      if(target) target.classList.add('active');
+    }
+
+    // =================== Core filtering ===================
+    function filterData(){
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const hostFilter = document.getElementById('hostFilter').value;
+      const familyFilter = document.getElementById('statusFilter').value; // 2xx/3xx/...
+      const portFilter = document.getElementById('portFilter').value;
+      const dateFilter = document.getElementById('dateFilter').value;
+
+      filteredData = allData.map(normalizeRow).filter(item=>{
+        const matchesSearch = !searchTerm ||
+          (item.host && item.host.toLowerCase().includes(searchTerm)) ||
+          (item.ip && item.ip.includes(searchTerm)) ||
+          (item.directory && item.directory.toLowerCase().includes(searchTerm)) ||
+          String(item.status||'').includes(searchTerm);
+
+        const matchesHost = !hostFilter || item.host === hostFilter;
+
+        // priorité au filtre exact via chip
+        const matchesExact = (exactStatusFilter==null) || item.status === exactStatusFilter;
+
+        // puis filtre famille si pas de chip
+        const matchesFamily = (!familyFilter || exactStatusFilter!=null)
+          ? true
+          : getStatusClass(item.status).includes(familyFilter);
+
+        const matchesPort = !portFilter || String(item.port) === portFilter;
+
+        const matchesDate = !dateFilter || (item.scan_date && item.scan_date.startsWith(dateFilter));
+
+        return matchesSearch && matchesHost && matchesExact && matchesFamily && matchesPort && matchesDate;
+      });
+
+      sortData();
+      currentPage=1;
+      displayResults();
+      updatePagination();
+    }
+
+    function normalizeRow(row){
+      const host=row.hostname||row.host||'';
+      const iso=row.scan_date && !isNaN(Date.parse(row.scan_date))
+        ? new Date(row.scan_date).toISOString()
+        : (row.scan_date||null);
+      return {...row, host, directory:sanitizePath(row.directory||'/'), scan_date:iso};
+    }
+
+    // =================== Sorting ===================
+    function sortData(){
+      filteredData.sort((a,b)=>{
+        let aVal=a[sortField], bVal=b[sortField];
+        if(sortField==='scan_date'){ aVal=aVal?Date.parse(aVal):0; bVal=bVal?Date.parse(bVal):0; }
+        else{
+          if(typeof aVal==='string') aVal=aVal.toLowerCase();
+          if(typeof bVal==='string') bVal=bVal.toLowerCase();
+        }
+        return sortDirection==='asc' ? (aVal>bVal?1:-1) : (aVal<bVal?1:-1);
+      });
+    }
+    function sortTable(field){
+      if(sortField===field) sortDirection = (sortDirection==='asc'?'desc':'asc');
+      else { sortField=field; sortDirection='asc'; }
+      document.querySelectorAll('th').forEach(th=>th.className=th.className.replace(/sort-(asc|desc)/,''));
+      const th=document.querySelector(`th[onclick="sortTable('${field}')"]`);
+      if(th) th.classList.add(`sort-${sortDirection}`);
+      filterData();
+    }
+
+    // =================== Rendering ===================
+    function displayResults(){
+      const tbody=document.getElementById('resultsTable');
+      const startIndex=(currentPage-1)*itemsPerPage;
+      const endIndex=startIndex+itemsPerPage;
+      const pageData=filteredData.slice(startIndex,endIndex);
+
+      if(pageData.length===0){
+        tbody.innerHTML='<tr><td colspan="8" class="no-results">No results found</td></tr>';
+        document.getElementById('resultsCount').textContent='Showing 0-0 of 0 results';
+        return;
+      }
+
+      tbody.innerHTML = pageData.map(item=>`
+        <tr onclick="showDetails(${item.id})">
+          <td><span class="host-badge">${escapeHtml(item.host||'')}</span></td>
+          <td>${escapeHtml(item.ip||'')}</td>
+          <td><span class="port-badge">${item.port ?? ''}</span></td>
+          <td>${escapeHtml(item.directory||'/')}</td>
+          <td>
+            <span class="status ${getStatusClass(item.status)} status-${item.status}"
+                  title="${item.status} — ${getStatusText(item.status)}">
+              ${item.status}
+            </span>
+          </td>
+          <td>${formatSize(Number(item.size||0))}</td>
+          <td>${formatDate(item.scan_date)}</td>
+          <td>
+            <a href="${buildUrl(item)}" target="_blank" class="url-link" onclick="event.stopPropagation()" title="Open URL">🔗</a>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('resultsCount').textContent =
+        `Showing ${startIndex+1}-${Math.min(endIndex,filteredData.length)} of ${filteredData.length} results`;
+    }
+
+    function buildUrl(item){
+      const protocol=item.port===443?'https':'http';
+      const port=(item.port===80||item.port===443)?'':`:${item.port}`;
+      const host=item.ip||item.host||'';
+      const cleanDir='/' + String(sanitizePath(item.directory||'/')).replace(/^\/*/,'');
+      return `${protocol}://${host}${port}${cleanDir}`;
+    }
+
+    function formatSize(size){
+      if(!Number.isFinite(size)||size<0) return 'N/A';
+      if(size<1024) return size+' B';
+      if(size<1024*1024) return (size/1024).toFixed(1)+' KB';
+      return (size/(1024*1024)).toFixed(1)+' MB';
+    }
+    function formatDate(s){
+      if(!s) return 'N/A'; const d=new Date(s); return isNaN(d)?'N/A':d.toLocaleDateString();
+    }
+    function escapeHtml(t){const div=document.createElement('div');div.textContent=t==null?'':String(t);return div.innerHTML;}
+
+    // =================== Pagination ===================
+    function updatePagination(){
+      const pagination=document.getElementById('pagination');
+      const totalPages=Math.ceil(filteredData.length/itemsPerPage);
+      if(itemsPerPage>=filteredData.length || totalPages<=1){ pagination.innerHTML=''; return; }
+      let html=`
+        <button class="page-btn" ${currentPage===1?'disabled':''} onclick="goToPage(1)">First</button>
+        <button class="page-btn" ${currentPage===1?'disabled':''} onclick="goToPage(${currentPage-1})">Previous</button>`;
+      const startPage=Math.max(1,currentPage-2);
+      const endPage=Math.min(totalPages,currentPage+2);
+      for(let i=startPage;i<=endPage;i++){
+        html+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+      html+=`
+        <button class="page-btn" ${currentPage===totalPages?'disabled':''} onclick="goToPage(${currentPage+1})">Next</button>
+        <button class="page-btn" ${currentPage===totalPages?'disabled':''} onclick="goToPage(${totalPages})">Last</button>`;
+      pagination.innerHTML=html;
+    }
+    function goToPage(p){ currentPage=p; displayResults(); updatePagination(); }
+
+    async function changeItemsPerPage(){
+      const val=document.getElementById('itemsPerPage').value;
+      if(val==='all'){
+        if(fetchedLimit<serverTotal){
+          showNotification('Loading all rows…');
+          const {results,total}=await fetchAll(PAGE_LIMIT);
+          allData=results; serverTotal=total||results.length; fetchedLimit=allData.length;
+          populateFilters(); renderStatusLegend(); filterData(); updateStats();
+        }
+        itemsPerPage=Number.MAX_SAFE_INTEGER;
+      }else{
+        itemsPerPage=parseInt(val,10);
+      }
+      currentPage=1; displayResults(); updatePagination();
+    }
+
+    // =================== Stats ===================
+    function updateStats(){
+      const stats={
+        total: allData.length,
+        hosts: new Set(allData.map(i=>i.hostname||i.host)).size,
+        success: allData.filter(i=>i.status>=200 && i.status<300).length,
+        errors: allData.filter(i=>i.status>=400).length
+      };
+      document.getElementById('stats').innerHTML=`
+        <div class="stat-card"><div class="stat-value">${stats.total}</div><div class="stat-label">Total Results</div></div>
+        <div class="stat-card"><div class="stat-value">${stats.hosts}</div><div class="stat-label">Unique Hosts</div></div>
+        <div class="stat-card"><div class="stat-value">${stats.success}</div><div class="stat-label">Success (2xx)</div></div>
+        <div class="stat-card"><div class="stat-value">${stats.errors}</div><div class="stat-label">Errors (4xx/5xx)</div></div>
+      `;
+    }
+
+    // =================== Modal (IDs corrigés) ===================
+    function showDetails(id){
+      const item = allData.map(normalizeRow).find(i=>i.id===id);
+      if(!item) return;
+
+      const url  = buildUrl(item);
+      const desc = getStatusText(item.status);
+
+      const modal     = document.getElementById('webenumDetailModal');
+      const container = document.getElementById('webenumModalContent');
+
+      if(!modal || !container){
+        console.warn('WebEnum modal elements not found');
+        return;
+      }
+
+      container.innerHTML=`
+        <h2>🔍 Result Details</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-top:12px;">
+          <div><strong>Host:</strong> ${escapeHtml(item.host||'N/A')}</div>
+          <div><strong>IP Address:</strong> ${escapeHtml(item.ip||'N/A')}</div>
+          <div><strong>MAC Address:</strong> ${escapeHtml(item.mac||'N/A')}</div>
+          <div><strong>Port:</strong> ${item.port ?? 'N/A'}</div>
+          <div><strong>Directory:</strong> ${escapeHtml(item.directory||'/')}</div>
+          <div><strong>Status:</strong> 
+            <span class="status ${getStatusClass(item.status)} status-${item.status}" title="${item.status} — ${desc}">
+              ${item.status}
+            </span>
+            <div style="color:var(--muted);font-size:.9rem;margin-top:4px;">${desc}</div>
+          </div>
+          <div><strong>Response Size:</strong> ${formatSize(Number(item.size||0))}</div>
+          <div><strong>Response Time:</strong> ${item.response_time||'N/A'}ms</div>
+          <div><strong>Content Type:</strong> ${escapeHtml(item.content_type||'N/A')}</div>
+          <div><strong>Scan Date:</strong> ${formatDate(item.scan_date)}</div>
+          <div style="grid-column:1/-1;"><strong>Full URL:</strong> <a href="${url}" target="_blank" class="url-link">${url}</a></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="window.open('${url}', '_blank')">🔗 Open URL</button>
+          <button class="btn" onclick="copyToClipboard('${url}')">📋 Copy URL</button>
+          <button class="btn" onclick="exportSingle(${item.id})">💾 Export</button>
+        </div>`;
+      modal.classList.add('show'); // affiche le modal (classe CSS)
+    }
+
+    function closeWebenumModal(){
+      const modal = document.getElementById('webenumDetailModal');
+      if(modal) modal.classList.remove('show');
+    }
+
+    // fermeture au clic sur le backdrop
+    document.addEventListener('click', (e)=>{
+      if(e.target && e.target.id === 'webenumDetailModal'){
+        closeWebenumModal();
+      }
+    });
+
+    // =================== Misc ===================
+    function copyToClipboard(text){ navigator.clipboard.writeText(text).then(()=>showNotification('URL copied to clipboard!')); }
+    function showNotification(message){
+      const n=document.createElement('div');
+      n.style.cssText=`position:fixed;top:20px;right:20px;background:var(--acid);color:var(--ink-invert);
+        padding:12px 20px;border-radius:12px;z-index:10000;font-weight:bold;animation:slideIn .3s ease-out;box-shadow:var(--shadow)`;
+      n.textContent=message; document.body.appendChild(n); setTimeout(()=>n.remove(),3000);
+    }
+    function exportResults(format){ const d=filteredData.length>0?filteredData:allData; if(format==='json')exportAsJSON(d); else if(format==='csv')exportAsCSV(d); }
+    function exportAsJSON(data){
+      const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
+      a.download=`webenum_results_${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showNotification(`Exported ${data.length} results as JSON`);
+    }
+    function exportAsCSV(data){
+      if(data.length===0) return;
+      const headers=Object.keys(data[0]);
+      const csv=[headers.join(','),...data.map(row=>headers.map(h=>{
+        const v=row[h]??''; return (typeof v==='string' && (v.includes(',')||v.includes('"'))) ? `"${v.replace(/"/g,'""')}"` : v;
+      }).join(','))].join('\n');
+      const blob=new Blob([csv],{type:'text/csv'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
+      a.download=`webenum_results_${new Date().toISOString().split('T')[0]}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showNotification(`Exported ${data.length} results as CSV`);
+    }
+    function exportSingle(id){ const item=allData.find(i=>i.id===id); if(item) exportAsJSON([item]); }
+
+    async function refreshData(){ showNotification('Refreshing data...'); await loadData(); showNotification('Data refreshed successfully!'); }
+
+    function showLoading(){
+      document.getElementById('resultsTable').innerHTML=`
+        <tr><td colspan="8" class="loading"><div class="spinner"></div> Loading results...</td></tr>`;
+      document.getElementById('resultsCount').textContent='Loading...';
+    }
+    function showError(msg){
+      document.getElementById('resultsTable').innerHTML=`
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--danger);">⚠️ ${msg}</td></tr>`;
+    }
+
+    // =================== Keyboard nav ===================
+    document.addEventListener('keydown', e=>{
+      if(e.target.tagName.toLowerCase()==='input') return;
+      if(e.key==='ArrowLeft' && currentPage>1) goToPage(currentPage-1);
+      if(e.key==='ArrowRight'){
+        const totalPages=Math.ceil(filteredData.length/itemsPerPage);
+        if(currentPage<totalPages) goToPage(currentPage+1);
+      }
+      if(e.key==='Escape') closeWebenumModal(); // fix: appelle le bon closer
+    });
+
+    // Animations styles
+    const style=document.createElement('style');
+    style.textContent=`
+      @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+      .highlight{background-color:color-mix(in oklab, var(--acid) 18%, transparent)!important;transition:background-color .3s ease}
+      .fade-out{opacity:.5;transition:opacity .3s ease}`;
+    document.head.appendChild(style);
+
+    // SW (optionnel)
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(console.error); }
+  </script>
+</body>
+</html>
