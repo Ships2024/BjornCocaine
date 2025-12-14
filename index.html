@@ -161,7 +161,7 @@
         }
 
         .markdown-body p {
-            margin-bottom: 1.25rem;
+            /* margin-bottom: 1.25rem; */
             line-height: 1.7;
         }
 
@@ -249,7 +249,6 @@
         .markdown-body img {
             max-width: 100%;
             border-radius: 8px;
-            border: 1px solid var(--border-color);
             cursor: zoom-in;
             transition: transform 0.2s;
         }
@@ -598,7 +597,7 @@
         <div class="p-4 border-t border-hack-border bg-hack-bg/30 flex-none">
             <div class="text-center">
                 <strong class="text-gray-500 text-sm block mb-3 font-mono tracking-wide">:: JOIN US ::</strong>
-                <div class="flex flex-col gap-2.5">
+                <div class="flex flex-col">
 
                     <a href="https://discord.gg/B3ZH9taVfT" target="_blank"
                         class="hover:opacity-80 transition-opacity block">
@@ -714,8 +713,7 @@
         };
 
         marked.use({ renderer });
-        marked.setOptions({ breaks: true, gfm: true });
-
+        marked.setOptions({ breaks: false, gfm: true });
         const STATE = {
             wikiData: {},
             contentCache: {},
@@ -1393,8 +1391,8 @@
         const overlay = document.getElementById('overlay');
 
         function openMenu() {
-            closeTOC(); // Close TOC if open
             sidebar.classList.remove('-translate-x-full');
+            closeTOC(); // Close TOC if open
             overlay.classList.remove('hidden');
             setTimeout(() => overlay.classList.remove('opacity-0'), 10);
         }
@@ -1408,8 +1406,8 @@
             const list = document.getElementById('mobile-toc-list');
             if (!list.hasChildNodes() || list.innerHTML.includes('No sections')) return;
 
-            closeMenu(); // Close Menu if open
             tocSidebar.classList.remove('translate-x-full');
+            closeMenu(); // Close Menu if open
             overlay.classList.remove('hidden');
             setTimeout(() => overlay.classList.remove('opacity-0'), 10);
         }
@@ -1486,6 +1484,8 @@
             const t = e.changedTouches[0];
             touchStartX = t.clientX;
             touchStartY = t.clientY;
+            touchEndX = t.clientX;
+            touchEndY = t.clientY;
         });
 
         document.addEventListener("touchmove", (e) => {
