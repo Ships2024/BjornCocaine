@@ -1468,17 +1468,34 @@
                 scrollBtn.onclick = () => scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
             }
         }
-
         // --- MOBILE SWIPE GESTURES ---
         let touchStartX = 0;
         let touchStartY = 0;
         let touchEndX = 0;
         let touchEndY = 0;
+        let scrollableElement = null;
 
         const MIN_SWIPE_DISTANCE = 50;
         const MAX_VERTICAL_DRIFT = 80;
         const EDGE_ZONE_LEFT = 200; // Swipe from left triggers Menu
         const EDGE_ZONE_RIGHT = 100; // Distance from right edge to likely trigger TOC
+
+        // Helper function to check if element has horizontal scroll
+        function hasHorizontalScroll(el) {
+            if (!el) return false;
+            return el.scrollWidth > el.clientWidth;
+        }
+
+        // Find closest scrollable parent
+        function findScrollableParent(el) {
+            while (el && el !== document.body) {
+                if (hasHorizontalScroll(el)) {
+                    return el;
+                }
+                el = el.parentElement;
+            }
+            return null;
+        }
 
         document.addEventListener("touchstart", (e) => {
             const t = e.changedTouches[0];
@@ -1486,6 +1503,9 @@
             touchStartY = t.clientY;
             touchEndX = t.clientX;
             touchEndY = t.clientY;
+
+            // Check if touch started on a horizontally scrollable element
+            scrollableElement = findScrollableParent(e.target);
         });
 
         document.addEventListener("touchmove", (e) => {
@@ -1495,6 +1515,12 @@
         });
 
         document.addEventListener("touchend", () => {
+            // If we're in a scrollable element, don't trigger swipe gestures
+            if (scrollableElement) {
+                scrollableElement = null;
+                return;
+            }
+
             const dx = touchEndX - touchStartX;
             const dy = Math.abs(touchEndY - touchStartY);
             const screenW = window.innerWidth;
