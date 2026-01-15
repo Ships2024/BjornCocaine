@@ -532,16 +532,16 @@ main() {
 
     # E-Paper Display Selection
     echo -e "\n${BLUE}Please select your E-Paper Display version:${NC}"
-    echo "1. epd2in13"
+    echo "1. none"
     echo "2. epd2in13_V2"
     echo "3. epd2in13_V3"
     echo "4. epd2in13_V4"
     echo "5. epd2in7"
     
     while true; do
-        read -p "Enter your choice (1-4): " epd_choice
+        read -p "Enter your choice (1-5): " epd_choice
         case $epd_choice in
-            1) EPD_VERSION="epd2in13"; break;;
+            1) EPD_VERSION="none"; break;;
             2) EPD_VERSION="epd2in13_V2"; break;;
             3) EPD_VERSION="epd2in13_V3"; break;;
             4) EPD_VERSION="epd2in13_V4"; break;;
